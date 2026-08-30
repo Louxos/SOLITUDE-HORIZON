@@ -1,0 +1,2815 @@
+# SOLITUDE HORIZON
+
+## Ultimate Browser Open-World Realistic Exploration Game
+
+### Complete Technical & Gameplay Specification
+
+---
+
+# 0. MISSION GÉNÉRALE
+
+Tu es une équipe complète de développement de jeux vidéo réunie dans une seule IA :
+
+* Senior Game Developer
+* Senior JavaScript/TypeScript Developer
+* Three.js/WebGL/WebGPU Engineer
+* Gameplay Programmer
+* Technical Artist
+* 3D Environment Designer
+* Procedural Generation Engineer
+* Physics Programmer
+* AI Programmer
+* UI/UX Designer
+* Audio Designer
+* Performance Engineer
+* QA Engineer
+
+Ta mission est de créer **SOLITUDE HORIZON**, un jeu d'exploration 3D extrêmement réaliste jouable directement dans un navigateur web.
+
+Ce projet doit être traité comme un véritable jeu vidéo et non comme une simple démonstration technique.
+
+Le résultat final doit être :
+
+* jouable
+* cohérent
+* immersif
+* réaliste
+* performant
+* sauvegardable
+* extensible
+* entièrement utilisable depuis un navigateur
+* capable de fonctionner hors ligne après installation/chargement des ressources nécessaires
+
+IMPORTANT :
+
+Le réalisme est une priorité absolue.
+
+Le jeu doit chercher à donner l'impression d'un véritable monde abandonné, naturel et crédible.
+
+Ne cherche pas à ajouter artificiellement énormément de fonctionnalités. Il vaut mieux avoir moins de systèmes mais qu'ils soient extrêmement bien intégrés, réalistes et fonctionnels.
+
+---
+
+# 1. CONCEPT DU JEU
+
+Le joueur explore une vaste région naturelle abandonnée par l'humanité depuis suffisamment longtemps pour que la nature ait fortement repris ses droits.
+
+Il n'y a actuellement :
+
+* aucun PNJ humain
+* aucune grande ville moderne
+* aucune civilisation active
+* aucune quête scénarisée obligatoire
+* aucun objectif principal imposé
+
+Le joueur est libre.
+
+Il explore.
+
+Il observe.
+
+Il fouille.
+
+Il récupère.
+
+Il répare.
+
+Il survit.
+
+Il construit progressivement son refuge.
+
+Il découvre ce qui reste de l'ancienne civilisation.
+
+Le jeu doit donner au joueur la sensation suivante :
+
+"Je suis réellement seul dans une immense région abandonnée."
+
+Le monde doit raconter son histoire uniquement à travers son environnement, ses bâtiments, ses objets et les traces laissées par les anciens habitants.
+
+Aucune exposition narrative obligatoire pour le moment.
+
+L'architecture du projet doit cependant permettre d'ajouter ultérieurement :
+
+* PNJ
+* histoire
+* quêtes
+* événements
+* nouvelles régions
+* nouveaux bâtiments
+* nouveaux systèmes
+
+sans devoir réécrire entièrement le moteur.
+
+---
+
+# 2. DIRECTION ARTISTIQUE : ULTRA RÉALISME
+
+La direction artistique doit viser un réalisme extrêmement poussé pour un jeu navigateur.
+
+Objectif :
+
+REALISME VISUEL : 8,5 à 9/10
+
+Ne pas utiliser volontairement un style cartoon, low-poly ou excessivement stylisé.
+
+Le monde doit être crédible.
+
+Les matériaux doivent avoir des propriétés physiques plausibles.
+
+Les couleurs doivent rester naturelles.
+
+Éviter les couleurs excessivement saturées.
+
+Les surfaces doivent présenter des variations naturelles :
+
+* saleté
+* humidité
+* poussière
+* vieillissement
+* décoloration
+* mousse
+* rouille
+* fissures
+* végétation
+* traces d'utilisation
+
+Le réalisme doit venir autant des petits détails que des grandes structures.
+
+---
+
+# 3. CONTRAINTE MATÉRIELLE
+
+Le jeu doit fonctionner sur un PC milieu de gamme raisonnablement accessible.
+
+Il ne doit pas nécessiter :
+
+* une carte graphique haut de gamme
+* un PC gaming extrêmement cher
+* une quantité énorme de RAM
+* un processeur haut de gamme
+
+Cible principale :
+
+* résolution 1920×1080
+* objectif de 60 FPS
+* fonctionnement acceptable autour de 45-60 FPS sur une configuration milieu de gamme
+* réglages graphiques Bas / Moyen / Élevé
+* qualité automatique optionnelle
+
+La performance doit être considérée dès la conception du moteur.
+
+NE JAMAIS attendre la fin du projet pour optimiser.
+
+---
+
+# 4. NAVIGATEUR
+
+Le jeu doit fonctionner directement dans un navigateur moderne.
+
+Priorité :
+
+* Chrome
+* Edge
+* Firefox
+* Opera
+
+Utiliser les technologies web modernes adaptées.
+
+Three.js est recommandé pour le rendu 3D.
+
+Utiliser WebGL et/ou WebGPU lorsque cela apporte un réel avantage, mais prévoir un fallback WebGL fiable.
+
+Le jeu ne doit pas dépendre d'un serveur de jeu permanent.
+
+---
+
+# 5. FONCTIONNEMENT HORS LIGNE
+
+Après le premier chargement/installation, le jeu doit pouvoir fonctionner autant que possible sans connexion Internet.
+
+Utiliser une architecture PWA/offline avec :
+
+* Service Worker
+* Cache API
+* ressources locales
+* IndexedDB si nécessaire
+* LocalStorage pour les petites données de sauvegarde
+
+Ne jamais dépendre d'une API distante pour les mécaniques principales du jeu.
+
+Le jeu doit rester jouable si Internet disparaît après le chargement initial.
+
+---
+
+# 6. STRUCTURE DU PROJET
+
+NE PAS tout mettre obligatoirement dans un gigantesque fichier JavaScript.
+
+Utiliser une architecture modulaire claire.
+
+Exemple :
+
+/index.html
+/css/
+main.css
+ui.css
+/js/
+main.js
+core/
+world/
+player/
+environment/
+animals/
+vehicles/
+buildings/
+inventory/
+survival/
+base/
+interaction/
+save/
+ui/
+audio/
+optimization/
+/assets/
+textures/
+models/
+audio/
+icons/
+/data/
+
+Adapter cette structure si une meilleure architecture existe.
+
+Chaque module doit avoir une responsabilité claire.
+
+---
+
+# 7. MONDE
+
+Créer un monde ouvert naturel d'environ 5 × 5 km.
+
+La taille exacte peut être ajustée légèrement si cela améliore fortement les performances.
+
+Le monde doit sembler beaucoup plus grand grâce :
+
+* au relief
+* à la visibilité
+* aux montagnes
+* aux vallées
+* aux forêts
+* aux routes
+* aux lacs
+* aux bâtiments
+* à la génération procédurale
+* au streaming
+
+Le joueur ne doit pas avoir l'impression de jouer sur une petite carte artificielle.
+
+---
+
+# 8. GÉNÉRATION PROCÉDURALE DÉTERMINISTE
+
+Le monde doit être généré procéduralement à partir d'une seed fixe.
+
+Exemple conceptuel :
+
+WORLD_SEED = 847291
+
+La seed doit produire exactement le même monde pour tous les joueurs.
+
+Même seed =
+
+* mêmes montagnes
+* mêmes forêts
+* mêmes lacs
+* mêmes champs
+* mêmes routes
+* mêmes bâtiments
+* mêmes grottes
+* mêmes ressources principales
+
+La génération doit être déterministe.
+
+Le monde ne doit pas changer aléatoirement à chaque lancement.
+
+---
+
+# 9. CHUNK SYSTEM
+
+Le monde doit être découpé en chunks.
+
+Le joueur se trouve dans un chunk actif.
+
+Les chunks proches :
+
+* haute qualité
+* objets détaillés
+* interactions actives
+* animaux actifs
+* physique active
+
+Les chunks intermédiaires :
+
+* qualité réduite
+* moins d'objets actifs
+* IA simplifiée
+
+Les chunks lointains :
+
+* géométrie simplifiée
+* végétation simplifiée
+* pas de physique inutile
+* pas d'IA détaillée
+
+Les chunks très éloignés peuvent être déchargés.
+
+Le système doit permettre une exploration continue sans charger les 25 km² simultanément.
+
+---
+
+# 10. TERRAIN
+
+Créer un terrain extrêmement réaliste avec :
+
+* montagnes
+* collines
+* vallées
+* plaines
+* plateaux
+* falaises
+* zones rocheuses
+* champs
+* forêts
+* berges
+* chemins naturels
+
+Utiliser plusieurs couches de bruit procédural afin d'éviter un terrain artificiel.
+
+Éviter les répétitions évidentes.
+
+Les montagnes doivent avoir :
+
+* pentes variables
+* crêtes
+* rochers
+* zones rocheuses
+* végétation adaptée à l'altitude
+
+Les plaines doivent être légèrement irrégulières.
+
+---
+
+# 11. BIOMES
+
+Créer plusieurs biomes cohérents.
+
+Minimum recommandé :
+
+1. Forêt dense
+2. Forêt clairsemée
+3. Prairie
+4. Champs abandonnés
+5. Montagne
+6. Zone rocheuse
+7. Bord de lac
+8. Vallée
+9. Zone humide
+10. Zone forestière fortement envahie
+
+Les transitions entre biomes doivent être progressives.
+
+Ne jamais créer des frontières parfaitement droites entre les biomes.
+
+---
+
+# 12. VÉGÉTATION
+
+Créer une végétation réaliste et procédurale.
+
+Inclure :
+
+* arbres
+* petits arbres
+* arbustes
+* herbe
+* hautes herbes
+* fleurs
+* fougères
+* plantes sauvages
+* mousse
+* végétation grimpante
+
+Utiliser l'instancing pour les objets répétitifs.
+
+Les arbres doivent varier :
+
+* taille
+* rotation
+* forme
+* densité
+* âge
+* espèce
+
+Éviter l'effet "copier-coller".
+
+La végétation doit être plus dense dans les zones humides et forestières.
+
+Elle doit reprendre progressivement les zones abandonnées.
+
+---
+
+# 13. NATURE QUI REPREND SES DROITS
+
+C'est une mécanique visuelle importante.
+
+Les bâtiments abandonnés doivent présenter :
+
+* herbe autour des fondations
+* plantes près des murs
+* mousse
+* lierre
+* branches proches des fenêtres
+* végétation dans certaines pièces
+* racines
+* feuilles mortes
+* saleté
+* humidité
+* dégradation
+
+Certaines routes peuvent présenter :
+
+* fissures
+* herbes dans les fissures
+* petits arbres sur les bords
+* boue
+* flaques
+
+L'abandon doit être crédible.
+
+---
+
+# 14. EAU
+
+Créer :
+
+* lacs
+* rivières
+* ruisseaux
+* éventuellement une zone maritime si cela améliore le monde
+
+L'eau doit être réaliste mais raisonnable pour les performances.
+
+Inclure :
+
+* mouvement
+* transparence contrôlée
+* reflets approximatifs
+* profondeur
+* ondulations
+* pluie à la surface
+* rivages réalistes
+
+Ne pas utiliser un shader extrêmement coûteux si une solution plus légère produit un résultat proche.
+
+---
+
+# 15. PHYSIQUE DE L'EAU
+
+Le joueur peut :
+
+* entrer dans l'eau
+* marcher dans l'eau peu profonde
+* nager dans l'eau profonde
+
+La vitesse de déplacement doit changer selon la profondeur.
+
+La caméra doit réagir légèrement sous l'eau.
+
+Ajouter si possible :
+
+* son étouffé
+* particules
+* lumière filtrée
+* brouillard sous-marin
+
+---
+
+# 16. MONTAGNES ET ESCALADE
+
+Le joueur doit pouvoir gravir naturellement les terrains praticables.
+
+Ajouter un système d'escalade simplifié mais crédible.
+
+Le joueur peut escalader certaines surfaces.
+
+Le système doit vérifier :
+
+* pente
+* hauteur
+* surface
+* endurance
+* possibilité d'accroche
+
+L'escalade consomme de l'endurance.
+
+Ne pas permettre de grimper absolument partout.
+
+Les surfaces impossibles doivent rester infranchissables.
+
+---
+
+# 17. JOUEUR
+
+Vue à la première personne.
+
+Contrôles par défaut :
+
+ZQSD :
+
+* Z = avancer
+* Q = gauche
+* S = reculer
+* D = droite
+
+Shift :
+
+* courir
+
+Espace :
+
+* sauter
+
+E :
+
+* interagir
+
+M :
+
+* carte
+
+I :
+
+* inventaire
+
+ESC :
+
+* menu
+
+Prévoir la possibilité de modifier les touches dans les paramètres.
+
+---
+
+# 18. MOUVEMENT
+
+Le mouvement doit être naturel.
+
+Inclure :
+
+* accélération légère
+* décélération
+* marche
+* course
+* saut
+* chute
+* collision
+* pente
+* gravité
+
+Ajouter un head bobbing extrêmement subtil.
+
+Ne jamais exagérer les mouvements de caméra.
+
+Le joueur doit se sentir comme un humain réel.
+
+---
+
+# 19. ENDURANCE
+
+L'endurance est utilisée pour :
+
+* courir
+* grimper
+* nager intensivement
+* certaines actions physiques
+
+L'endurance se régénère progressivement lorsque le joueur se repose.
+
+Si l'endurance tombe à zéro :
+
+* course impossible temporairement
+* vitesse réduite
+* récupération progressive
+
+Ne jamais rendre le système inutilement frustrant.
+
+---
+
+# 20. SANTÉ
+
+La santé représente l'état physique du joueur.
+
+Elle peut diminuer à cause :
+
+* chutes
+* attaques animales
+* accidents
+* conditions extrêmes
+* manque prolongé de nourriture
+* manque prolongé d'eau
+* manque prolongé de sommeil
+
+La santé ne doit pas descendre rapidement simplement parce que le joueur n'a pas mangé pendant quelques minutes.
+
+Le système doit fonctionner progressivement.
+
+---
+
+# 21. FAIM
+
+Ajouter une statistique de faim.
+
+La faim diminue progressivement.
+
+Une faim faible peut :
+
+* réduire légèrement la régénération
+* réduire l'endurance maximale
+* ralentir certaines récupérations
+
+Une faim très faible peut progressivement affecter la santé.
+
+Le joueur doit pouvoir trouver :
+
+* nourriture
+* boissons
+* provisions
+
+Les aliments doivent avoir des propriétés différentes.
+
+---
+
+# 22. SOIF
+
+La soif doit avoir un impact plus important que la faim.
+
+Le joueur doit régulièrement boire.
+
+Une soif importante peut :
+
+* réduire l'endurance
+* ralentir la récupération
+* affecter la santé si elle devient critique
+
+Prévoir des bouteilles et récipients.
+
+---
+
+# 23. SOMMEIL
+
+Le joueur possède une fatigue.
+
+Il peut dormir dans :
+
+* lits
+* sacs de couchage
+* certains refuges
+* base du joueur
+
+Le manque de sommeil doit progressivement :
+
+* réduire l'endurance
+* réduire la récupération
+* réduire certaines performances
+
+Dormir doit faire avancer l'heure.
+
+---
+
+# 24. INVENTAIRE
+
+Le joueur commence avec presque rien.
+
+Il possède un sac à dos.
+
+L'inventaire est limité par :
+
+* nombre de slots
+* poids maximal
+
+Chaque objet possède :
+
+* poids
+* taille logique
+* catégorie
+* état éventuel
+* valeur éventuelle
+
+Catégories :
+
+* nourriture
+* eau
+* outils
+* matériaux
+* pièces mécaniques
+* objets médicaux
+* objets divers
+* objets de construction
+* ressources
+
+---
+
+# 25. LOOT ET FOUILLE
+
+Le monde doit contenir des objets récupérables.
+
+Les objets ne doivent pas apparaître uniquement sous forme de coffres magiques.
+
+Ils doivent être placés de manière crédible :
+
+* tiroirs
+* placards
+* tables
+* garages
+* étagères
+* véhicules
+* ateliers
+* greniers
+* caves
+* sacs
+* caisses
+
+Le joueur doit devoir regarder autour de lui.
+
+Les objets importants doivent être visibles mais pas forcément immédiatement.
+
+---
+
+# 26. INTERACTION
+
+Lorsqu'un objet est interactif :
+
+* léger indicateur à l'écran
+* nom de l'objet
+* action disponible
+
+Exemple :
+
+"Lampe"
+
+[ E ] Prendre
+
+Pour une porte :
+
+"Maison abandonnée"
+
+[ E ] Ouvrir
+
+Ne pas afficher des dizaines d'éléments UI en permanence.
+
+L'interface doit rester immersive.
+
+---
+
+# 27. MAISONS ABANDONNÉES
+
+Les maisons sont une partie centrale du jeu.
+
+Créer différents types :
+
+* petite maison
+* maison familiale
+* ferme
+* cabane
+* chalet
+* atelier
+* garage
+* bâtiment agricole
+* petite structure industrielle
+
+Les bâtiments doivent être générés ou assemblés à partir de modules cohérents.
+
+Chaque bâtiment doit pouvoir avoir :
+
+* pièces différentes
+* meubles différents
+* état différent
+* objets différents
+* portes
+* fenêtres
+* garages
+* caves
+* greniers
+
+---
+
+# 28. EXPLORATION INTÉRIEURE
+
+Le joueur doit pouvoir réellement entrer dans les bâtiments.
+
+Les portes doivent fonctionner.
+
+Certaines peuvent être :
+
+* ouvertes
+* fermées
+* verrouillées
+* bloquées
+* cassées
+
+Certaines fenêtres peuvent permettre l'entrée.
+
+Certaines maisons peuvent avoir plusieurs entrées.
+
+Le joueur doit pouvoir explorer les pièces.
+
+---
+
+# 29. ÉTAT DES BÂTIMENTS
+
+Les bâtiments doivent avoir différents niveaux de dégradation.
+
+Exemples :
+
+* légèrement abandonné
+* fortement dégradé
+* partiellement détruit
+* envahi par la végétation
+* structure dangereuse
+
+Les objets doivent également pouvoir avoir un état :
+
+* neuf
+* usé
+* cassé
+* rouillé
+* inutilisable
+
+---
+
+# 30. RÉPARATION
+
+Le système de réparation est intermédiaire.
+
+Le joueur ne doit pas simplement appuyer sur un bouton pour réparer instantanément.
+
+Lorsqu'il examine un objet réparable, afficher un diagnostic.
+
+Exemple :
+
+VIEILLE VOITURE
+
+Moteur :
+
+* Batterie : MANQUANTE
+* Huile : TRÈS BASSE
+* Courroie : ENDOMMAGÉE
+
+Électricité :
+
+* Câblage : ENDOMMAGÉ
+
+Le joueur doit chercher les bonnes ressources.
+
+Les réparations doivent nécessiter :
+
+* pièces
+* outils
+* ressources
+* parfois plusieurs étapes
+
+---
+
+# 31. OUTILS
+
+Créer quelques outils essentiels.
+
+Exemples :
+
+* tournevis
+* marteau
+* clé
+* pince
+* outil multifonction
+* lampe
+* outils mécaniques
+
+Chaque outil peut avoir :
+
+* état
+* durabilité optionnelle
+* utilisations
+
+Ne pas créer 200 outils différents.
+
+---
+
+# 32. VÉHICULES ABANDONNÉS
+
+Le monde peut contenir des véhicules abandonnés.
+
+Types :
+
+* voitures
+* camionnettes
+* petits véhicules tout-terrain
+
+Ils doivent apparaître naturellement :
+
+* routes
+* garages
+* maisons
+* champs
+* parkings abandonnés
+
+Le joueur peut examiner leur état.
+
+---
+
+# 33. RÉPARATION DES VÉHICULES
+
+Les véhicules doivent avoir plusieurs systèmes :
+
+* moteur
+* batterie
+* carburant
+* roues
+* freins
+* électricité
+* carrosserie
+
+Le joueur doit trouver les pièces nécessaires.
+
+Une fois suffisamment réparé, le véhicule devient utilisable.
+
+Le système doit être réaliste mais simplifié.
+
+---
+
+# 34. CONDUITE
+
+La conduite doit être agréable et crédible.
+
+Prévoir :
+
+* accélération
+* freinage
+* direction
+* adhérence
+* terrain
+* collisions
+* caméra
+* sons moteur
+
+Le véhicule doit réagir différemment selon :
+
+* route
+* boue
+* herbe
+* gravier
+* pente
+
+Ne pas chercher une simulation automobile professionnelle.
+
+---
+
+# 35. BASE DU JOUEUR
+
+Le joueur peut choisir certains bâtiments ou emplacements comme base.
+
+Une base doit pouvoir être personnalisée progressivement.
+
+Systèmes minimum :
+
+* stockage
+* coffres
+* lit
+* éclairage
+* espace de réparation
+* rangement
+* éventuellement établi
+
+---
+
+# 36. COFFRES
+
+Le joueur peut fabriquer ou récupérer des coffres.
+
+Chaque coffre possède son propre inventaire.
+
+Les objets doivent rester dans les coffres après sauvegarde.
+
+Le joueur doit pouvoir :
+
+* déposer
+* retirer
+* transférer rapidement
+* organiser
+
+Les coffres peuvent être placés dans la base.
+
+---
+
+# 37. AMÉNAGEMENT
+
+Permettre progressivement :
+
+* placer des coffres
+* placer certains meubles
+* installer des lumières
+* installer des équipements
+* réparer certaines parties du bâtiment
+
+Les éléments placés doivent rester à leur emplacement.
+
+Sauvegarder leur position et leur état.
+
+Ne pas créer un système de construction aussi complexe que Minecraft pour la première version.
+
+---
+
+# 38. ANIMAUX
+
+Aucun PNJ humain pour le moment.
+
+En revanche, le monde contient des animaux.
+
+Créer quelques espèces réalistes.
+
+Exemples :
+
+* cerf
+* sanglier
+* renard
+* lapin
+* oiseaux
+* poisson
+* éventuellement loup
+
+Limiter le nombre d'espèces initiales afin de préserver les performances.
+
+---
+
+# 39. IA ANIMALE
+
+Les animaux doivent avoir des comportements crédibles.
+
+Ils peuvent :
+
+* se déplacer
+* chercher de la nourriture
+* boire
+* fuir
+* se reposer
+* observer le joueur
+* dormir
+* se déplacer en groupe pour certaines espèces
+
+Les animaux ne doivent pas se déplacer de manière parfaitement aléatoire.
+
+Créer des zones d'intérêt.
+
+---
+
+# 40. ANIMAUX DANGEREUX
+
+Quelques animaux peuvent être potentiellement dangereux.
+
+Ils ne doivent pas attaquer systématiquement le joueur.
+
+Le comportement doit dépendre :
+
+* distance
+* espèce
+* situation
+* proximité
+* état de l'animal
+
+Le joueur doit pouvoir éviter la plupart des rencontres dangereuses.
+
+---
+
+# 41. COMBAT LÉGER
+
+Le combat doit rester secondaire.
+
+Ne pas transformer le jeu en shooter.
+
+Le joueur peut éventuellement se défendre avec des outils/armes très simples si cela correspond au contexte.
+
+Priorité :
+
+* esquive
+* fuite
+* observation
+* préparation
+
+Le combat doit rester réaliste et peu fréquent.
+
+---
+
+# 42. MORT ET RÉAPPARITION
+
+Si le joueur meurt, il réapparaît dans un lieu sécurisé approprié.
+
+Pour la première version, utiliser un système simple de réapparition.
+
+Prévoir un système d'hôpital ou de point médical si le monde en contient.
+
+Ne pas supprimer arbitrairement toute la progression.
+
+La sauvegarde doit protéger les éléments importants.
+
+---
+
+# 43. MÉTÉO
+
+Créer un système météo dynamique.
+
+États principaux :
+
+* ciel bleu
+* nuages
+* pluie
+* pluie forte
+* orage
+* brouillard
+
+Les changements doivent être progressifs.
+
+Éviter les changements instantanés.
+
+---
+
+# 44. PLUIE
+
+Pendant la pluie :
+
+* particules de pluie
+* sol visuellement humide
+* flaques si possible
+* sons de pluie
+* ciel plus sombre
+* visibilité réduite
+* végétation réagissant légèrement
+
+La pluie doit avoir une influence visuelle et sonore.
+
+---
+
+# 45. ORAGE
+
+Créer des orages occasionnels.
+
+Inclure :
+
+* ciel sombre
+* pluie forte
+* éclairs
+* tonnerre
+* variations de lumière
+
+Ne pas générer constamment des orages.
+
+Ils doivent rester relativement rares afin d'avoir un impact émotionnel.
+
+---
+
+# 46. CYCLE JOUR/NUIT
+
+Créer un cycle complet.
+
+Le soleil se déplace progressivement.
+
+La lumière change.
+
+Inclure :
+
+* matin
+* journée
+* coucher de soleil
+* crépuscule
+* nuit
+* lever du soleil
+
+La nuit doit être réellement sombre.
+
+Utiliser :
+
+* lune
+* étoiles
+* éclairage artificiel
+* lampe du joueur
+
+La nuit doit modifier l'atmosphère.
+
+---
+
+# 47. LUMIÈRE
+
+Utiliser une lumière naturelle crédible.
+
+Inclure si possible :
+
+* lumière directionnelle
+* ombres
+* éclairage local
+* lumière des lampes
+* lumière intérieure
+* variation selon l'heure
+
+Éviter les systèmes d'éclairage trop coûteux.
+
+---
+
+# 48. BROUILLARD ET ATMOSPHÈRE
+
+Ajouter un brouillard atmosphérique subtil.
+
+La densité doit dépendre :
+
+* distance
+* météo
+* heure
+* biome
+
+Le brouillard ne doit pas servir uniquement à cacher les limites du monde.
+
+Il doit contribuer au réalisme.
+
+---
+
+# 49. AUDIO
+
+L'audio est essentiel à l'immersion.
+
+Créer une ambiance sonore dynamique.
+
+Forêt :
+
+* vent
+* feuilles
+* oiseaux
+* branches
+
+Pluie :
+
+* pluie
+* gouttes
+* ruissellement
+
+Orage :
+
+* tonnerre
+
+Nuit :
+
+* ambiance plus calme
+* animaux nocturnes
+
+Bâtiments :
+
+* intérieur plus étouffé
+* craquements
+* vent
+* gouttes
+
+Le joueur doit entendre ses propres pas.
+
+Les sons doivent varier selon le terrain :
+
+* herbe
+* terre
+* bois
+* béton
+* métal
+* gravier
+* eau
+
+---
+
+# 50. MUSIQUE
+
+Ne pas mettre de musique permanente.
+
+La musique doit être rare et atmosphérique.
+
+Le silence doit être une composante importante du jeu.
+
+Utiliser éventuellement :
+
+* musique très discrète pendant certaines découvertes
+* musique lors d'événements particuliers
+* ambiance sonore naturelle le reste du temps
+
+---
+
+# 51. CARTE
+
+Créer une carte du monde.
+
+Touche M.
+
+La carte doit afficher :
+
+* position du joueur
+* terrain
+* lacs
+* routes
+* bâtiments découverts
+* base
+* lieux importants découverts
+
+Ne pas révéler immédiatement tout le monde.
+
+La carte peut se compléter progressivement.
+
+---
+
+# 52. MINIMAP
+
+Créer une minimap discrète.
+
+Afficher :
+
+* position
+* direction
+* terrain simplifié
+* bâtiments proches éventuellement découverts
+
+Ne pas surcharger l'écran.
+
+---
+
+# 53. EXPLORATION ET DÉCOUVERTE
+
+Le joueur doit pouvoir découvrir naturellement :
+
+* maisons
+* cabanes
+* anciennes fermes
+* véhicules
+* grottes
+* points de vue
+* lacs
+* zones montagneuses
+* objets rares
+* refuges
+* lieux abandonnés
+
+Lorsqu'un lieu important est découvert :
+
+"Nouvel endroit découvert"
+
+Puis son nom peut apparaître.
+
+---
+
+# 54. ABSENCE DE QUÊTES
+
+Pour la première version :
+
+aucune quête obligatoire.
+
+Aucun marqueur géant disant au joueur où aller.
+
+Aucune ligne directrice obligatoire.
+
+Le joueur choisit lui-même ce qu'il veut faire.
+
+L'exploration est le gameplay principal.
+
+---
+
+# 55. INTERFACE
+
+L'interface doit être premium, moderne et minimaliste.
+
+Éviter :
+
+* interfaces surchargées
+* gros panneaux permanents
+* couleurs criardes
+* éléments inutiles
+
+HUD :
+
+* santé
+* endurance
+* faim
+* soif
+* fatigue
+* heure
+* éventuellement température
+
+Les statistiques doivent être discrètes.
+
+---
+
+# 56. INVENTAIRE UI
+
+Créer une interface claire.
+
+Afficher :
+
+* slots
+* poids actuel
+* poids maximal
+* catégorie
+* description
+* état
+* actions
+
+Prévoir :
+
+* déplacer
+* utiliser
+* jeter
+* déposer
+* équiper
+
+---
+
+# 57. PARAMÈTRES
+
+Créer un vrai menu de paramètres.
+
+Inclure :
+
+Graphismes :
+
+* qualité générale
+* ombres
+* distance d'affichage
+* végétation
+* effets
+* particules
+* post-processing
+* qualité de l'eau
+
+Gameplay :
+
+* sensibilité souris
+* FOV
+* head bobbing
+* vibrations si supportées
+
+Audio :
+
+* volume général
+* musique
+* effets
+* ambiance
+
+Contrôles :
+
+* remappage des touches
+
+---
+
+# 58. QUALITÉ AUTOMATIQUE
+
+Créer éventuellement une détection automatique des performances.
+
+Le jeu peut commencer avec une qualité adaptée puis ajuster :
+
+* distance de rendu
+* densité de végétation
+* ombres
+* particules
+* résolution interne
+
+Objectif :
+maintenir une expérience fluide.
+
+---
+
+# 59. OPTIMISATION ABSOLUE
+
+Utiliser autant que raisonnablement possible :
+
+* InstancedMesh
+* LOD
+* frustum culling
+* occlusion culling lorsque pertinent
+* chunk streaming
+* object pooling
+* texture atlases
+* compression raisonnable
+* géométrie simplifiée à distance
+* IA simplifiée à distance
+* physique limitée aux objets proches
+* chargement asynchrone
+* destruction des ressources inutilisées
+
+Ne jamais créer des milliers d'objets JavaScript individuels si une structure instanciée est possible.
+
+---
+
+# 60. PERFORMANCE DES ANIMAUX
+
+Les animaux très éloignés ne doivent pas exécuter une IA complète.
+
+Utiliser plusieurs niveaux :
+
+Distance proche :
+IA complète.
+
+Distance moyenne :
+IA simplifiée.
+
+Distance lointaine :
+simulation très légère.
+
+Distance extrême :
+aucune simulation détaillée.
+
+---
+
+# 61. PERFORMANCE DES BÂTIMENTS
+
+Les bâtiments éloignés doivent utiliser :
+
+* modèles simplifiés
+* textures simplifiées
+* moins de détails intérieurs
+
+Les intérieurs ne doivent être chargés que lorsque nécessaire.
+
+---
+
+# 62. PERFORMANCE DU TERRAIN
+
+Ne pas générer toute la géométrie haute résolution de la carte.
+
+Utiliser :
+
+* terrain chunks
+* niveaux de détail
+* heightmaps
+* génération progressive
+
+Le joueur ne doit jamais subir un énorme freeze lors de l'exploration.
+
+La génération doit être distribuée autant que possible.
+
+---
+
+# 63. SAUVEGARDE
+
+Créer un système de sauvegarde robuste.
+
+Sauvegarder localement.
+
+Utiliser :
+
+* LocalStorage pour les données simples
+* IndexedDB pour les données importantes/volumineuses
+
+Sauvegarder :
+
+* position
+* santé
+* faim
+* soif
+* fatigue
+* inventaire
+* objets récupérés
+* coffres
+* contenu des coffres
+* base
+* objets placés
+* véhicules réparés
+* état des véhicules
+* progression d'exploration
+* carte découverte
+* heure du monde
+* état météo si nécessaire
+
+---
+
+# 64. SAUVEGARDE AUTOMATIQUE
+
+Sauvegarder automatiquement :
+
+* régulièrement
+* avant certains changements importants
+* lorsque le joueur quitte correctement la partie
+
+Éviter les sauvegardes trop fréquentes qui pourraient ralentir le jeu.
+
+Prévoir également une sauvegarde manuelle.
+
+---
+
+# 65. COHÉRENCE DU MONDE
+
+Le monde doit être persistant.
+
+Si le joueur :
+
+* ouvre une porte
+* prend un objet
+* vide un coffre
+* répare une voiture
+* place un coffre
+* aménage une base
+
+les changements doivent être conservés.
+
+Lorsqu'il revient plus tard, le monde doit se souvenir de ces changements.
+
+---
+
+# 66. PHYSIQUE
+
+Utiliser une solution de physique adaptée au navigateur.
+
+Une bibliothèque moderne peut être utilisée si elle apporte un réel avantage.
+
+La physique doit gérer :
+
+* collisions
+* gravité
+* véhicules
+* objets interactifs
+* joueur
+* pentes
+
+Ne pas utiliser la physique sur tous les objets du monde en permanence.
+
+---
+
+# 67. COLLISIONS
+
+Le joueur ne doit pas :
+
+* traverser les murs
+* traverser le sol
+* traverser les montagnes
+* passer à travers les véhicules
+
+Les collisions doivent être simplifiées lorsque possible.
+
+---
+
+# 68. ENVIRONNEMENT DYNAMIQUE
+
+Ajouter de petits éléments dynamiques :
+
+* herbe qui bouge avec le vent
+* arbres légèrement animés
+* nuages
+* pluie
+* oiseaux
+* insectes éventuellement
+* brouillard
+* particules
+
+Tout doit rester optimisé.
+
+---
+
+# 69. DÉTAILS RÉALISTES
+
+Ajouter de nombreux petits détails lorsque les performances le permettent :
+
+* feuilles mortes
+* branches au sol
+* rochers
+* déchets abandonnés
+* vieux panneaux
+* meubles renversés
+* poussière
+* toiles d'araignées si possible
+* traces d'humidité
+* rouille
+* peinture écaillée
+* végétation dans les fissures
+
+Mais éviter les objets décoratifs inutiles qui exploseraient le nombre de draw calls.
+
+---
+
+# 70. MONDE SANS PNJ
+
+Il ne doit y avoir aucun humain vivant dans la première version.
+
+L'absence d'humains doit être volontairement perceptible.
+
+Pas de villageois.
+
+Pas de commerçants.
+
+Pas de personnages marchant dans les rues.
+
+Pas de foule.
+
+Le joueur doit ressentir la solitude.
+
+Des traces de l'ancienne présence humaine peuvent exister :
+
+* maisons
+* voitures
+* objets
+* photos
+* livres
+* outils
+* panneaux
+* bâtiments
+
+Mais aucun PNJ vivant pour le moment.
+
+---
+
+# 71. IMMERSION
+
+Le jeu doit privilégier :
+
+* silence
+* exploration
+* observation
+* découverte
+* réalisme
+* cohérence
+* environnement
+
+Éviter les mécaniques typiques de jeux vidéo qui casseraient l'immersion.
+
+Par exemple :
+ne pas afficher constamment "XP +50".
+
+Ne pas transformer chaque découverte en récompense artificielle.
+
+---
+
+# 72. ABSENCE D'ARBITRAIRE
+
+Chaque élément du monde doit avoir une raison plausible d'être là.
+
+Exemple :
+
+Une vieille voiture près d'une maison :
+logique.
+
+Une boîte à outils dans un garage :
+logique.
+
+Une lampe dans une chambre :
+logique.
+
+Un objet rare posé au milieu d'une route sans raison :
+à éviter.
+
+Le placement procédural doit respecter le contexte.
+
+---
+
+# 73. GÉNÉRATION DES OBJETS
+
+Les objets doivent être générés selon le type de bâtiment.
+
+Exemple :
+
+Cuisine :
+
+* nourriture
+* ustensiles
+* bouteilles
+* vaisselle
+
+Garage :
+
+* outils
+* pièces
+* carburant
+* matériaux
+
+Chambre :
+
+* vêtements
+* livres
+* lampes
+* petits objets
+
+Atelier :
+
+* outils
+* pièces mécaniques
+* matériaux
+
+Cela doit rendre la fouille crédible.
+
+---
+
+# 74. RARETÉ
+
+Les ressources utiles ne doivent pas être disponibles partout.
+
+Créer plusieurs niveaux de rareté sans transformer le jeu en RPG :
+
+* courant
+* peu courant
+* rare
+* très rare
+
+Les objets rares doivent encourager l'exploration.
+
+---
+
+# 75. ÉCONOMIE
+
+Pour cette version :
+
+Aucune économie complexe.
+
+Le jeu ne doit pas avoir besoin de magasins ou de monnaie pour fonctionner.
+
+La valeur des objets peut être utilisée plus tard.
+
+Priorité :
+survie + récupération + réparation + exploration.
+
+---
+
+# 76. DÉPART
+
+Le joueur arrive dans la région après un long trajet.
+
+Son moyen de transport tombe en panne à proximité d'une ancienne route.
+
+Il possède très peu de ressources.
+
+Il commence avec :
+
+* petit sac à dos
+* lampe
+* quelques provisions
+* quelques outils basiques
+
+Il doit trouver un endroit où s'abriter.
+
+Aucune cinématique longue obligatoire.
+
+Le joueur doit pouvoir jouer rapidement.
+
+---
+
+# 77. PREMIÈRES MINUTES
+
+Les premières minutes doivent apprendre naturellement les mécaniques.
+
+Le joueur peut découvrir :
+
+* déplacement
+* interaction
+* inventaire
+* fouille
+* nourriture
+* eau
+* sommeil
+* bâtiment
+* sauvegarde
+
+Ne pas imposer un tutoriel intrusif.
+
+Utiliser de petits messages contextuels optionnels.
+
+---
+
+# 78. RÉALISME DU TEMPS
+
+Le temps doit avancer de manière cohérente.
+
+Les actions prennent une durée raisonnable.
+
+Dormir fait avancer plusieurs heures.
+
+Le jour/nuit influence :
+
+* lumière
+* température si implémentée
+* animaux
+* ambiance
+* visibilité
+
+---
+
+# 79. TEMPÉRATURE
+
+Optionnel mais recommandé.
+
+La température peut dépendre :
+
+* heure
+* météo
+* altitude
+* environnement
+
+Elle ne doit pas devenir un système frustrant.
+
+Le froid peut être géré avec :
+
+* abri
+* vêtements
+* feu si ajouté plus tard
+
+Si ce système compromet les performances ou la jouabilité, le simplifier.
+
+---
+
+# 80. FEU
+
+Le feu peut être ajouté comme système secondaire si les performances le permettent.
+
+Exemples :
+
+* feu de camp
+* chauffage
+* lumière
+
+Le feu doit être visuellement et techniquement raisonnable.
+
+---
+
+# 81. SYSTÈME DE DÉCOUVERTE
+
+Certains endroits peuvent avoir un intérêt particulier.
+
+Exemples :
+
+* vieille ferme
+* station abandonnée
+* chalet isolé
+* tunnel
+* ancienne carrière
+* refuge
+* point de vue
+* maison particulièrement bien conservée
+
+Ils doivent être placés de manière logique dans le monde.
+
+---
+
+# 82. GROTTES
+
+Créer quelques grottes naturelles.
+
+Les grottes doivent être :
+
+* sombres
+* étroites ou larges selon leur type
+* irrégulières
+* intégrées au relief
+
+Elles peuvent contenir :
+
+* ressources
+* eau
+* matériaux
+* objets abandonnés
+* animaux
+
+---
+
+# 83. ROUTES
+
+Créer un réseau routier naturel.
+
+Routes :
+
+* principales
+* secondaires
+* chemins
+* pistes
+
+Les routes doivent relier logiquement :
+
+* anciennes habitations
+* fermes
+* bâtiments
+* points d'intérêt
+
+Elles doivent présenter des signes d'abandon.
+
+---
+
+# 84. VÉGÉTATION SUR LES ROUTES
+
+Les routes abandonnées doivent progressivement être reprises par la nature.
+
+Mais la végétation doit rester cohérente avec le temps d'abandon.
+
+---
+
+# 85. QUALITÉ DES MODÈLES 3D
+
+Si des modèles externes sont utilisés, ils doivent être :
+
+* légers
+* optimisés
+* cohérents visuellement
+* adaptés à un jeu navigateur
+
+Si aucun asset externe n'est disponible, générer des formes procédurales ou géométriques améliorées plutôt que d'inventer des dépendances inexistantes.
+
+NE JAMAIS prétendre avoir créé ou inclus des assets qui n'existent pas réellement.
+
+---
+
+# 86. TEXTURES
+
+Utiliser des textures réalistes lorsque disponibles.
+
+Limiter leur taille afin de préserver la mémoire.
+
+Utiliser :
+
+* normal maps si pertinentes
+* roughness
+* variations de couleur
+* matériaux procéduraux lorsque cela réduit le poids
+
+---
+
+# 87. POST-PROCESSING
+
+Utiliser avec modération :
+
+* tone mapping
+* ambient occlusion approximative
+* bloom très subtil
+* color grading naturel
+* anti-aliasing
+
+Le post-processing ne doit jamais détruire les performances.
+
+Le réalisme doit principalement venir :
+
+* de l'éclairage
+* des matériaux
+* du terrain
+* de la végétation
+* de l'atmosphère
+
+---
+
+# 88. FOV ET CAMÉRA
+
+FOV configurable.
+
+Valeur par défaut réaliste.
+
+La caméra doit éviter :
+
+* mouvements excessifs
+* effets cinématiques permanents
+* motion blur excessif
+
+---
+
+# 89. HUD ADAPTATIF
+
+Le HUD doit pouvoir se réduire pendant l'exploration.
+
+En dehors des interactions :
+affichage minimal.
+
+Lors d'une interaction :
+informations nécessaires.
+
+---
+
+# 90. ACCESSIBILITÉ
+
+Prévoir :
+
+* taille du texte configurable
+* sensibilité souris
+* volume
+* FOV
+* remappage des touches
+* mode daltonien si raisonnable
+
+---
+
+# 91. GESTION DES ERREURS
+
+Le jeu ne doit pas planter si :
+
+* un asset manque
+* une génération échoue
+* un chunk prend trop longtemps
+* une sauvegarde échoue
+* une ressource n'est pas disponible
+
+Prévoir des fallbacks.
+
+Afficher des erreurs utiles dans la console développeur.
+
+Ne pas afficher d'erreurs techniques au joueur.
+
+---
+
+# 92. DEBUG MODE
+
+Créer un mode développeur facilement désactivable.
+
+Il peut afficher :
+
+* FPS
+* draw calls
+* triangles
+* chunk actuel
+* position
+* seed
+* mémoire approximative
+* objets actifs
+* nombre d'animaux
+* temps de génération
+
+Ce mode ne doit pas apparaître dans le jeu normal.
+
+---
+
+# 93. QUALITÉ DU CODE
+
+Le code doit être :
+
+* propre
+* commenté lorsque nécessaire
+* modulaire
+* maintenable
+* extensible
+* performant
+
+Éviter :
+
+* variables globales inutiles
+* duplication
+* fonctions gigantesques
+* systèmes complètement couplés
+* code mort
+
+---
+
+# 94. TYPESCRIPT
+
+Si TypeScript améliore fortement la qualité du projet, il peut être utilisé.
+
+Sinon JavaScript moderne est acceptable.
+
+Ne pas imposer TypeScript simplement pour faire compliqué.
+
+---
+
+# 95. LIBRAIRIES
+
+Utiliser des bibliothèques modernes et fiables si nécessaire.
+
+Three.js est la base recommandée.
+
+Pour la physique, choisir une solution adaptée au navigateur.
+
+Pour les icônes/UI, préférer des solutions légères.
+
+Éviter les dizaines de dépendances inutiles.
+
+---
+
+# 96. DÉPENDANCES
+
+Chaque dépendance externe doit avoir une raison claire.
+
+Le projet doit éviter :
+
+* frameworks inutiles
+* plugins abandonnés
+* bibliothèques énormes pour une petite fonctionnalité
+
+---
+
+# 97. INSTALLATION
+
+Le jeu doit être simple à lancer.
+
+Le projet doit fournir :
+
+* index.html
+* structure claire
+* instructions de lancement
+* configuration minimale
+
+Si un serveur local est techniquement nécessaire pour certaines fonctionnalités PWA, l'expliquer clairement.
+
+---
+
+# 98. IMPORTANT : NE PAS FAIRE UNE SIMPLE DÉMO
+
+Ceci est l'une des règles les plus importantes.
+
+NE PAS produire uniquement :
+
+* un terrain
+* quelques arbres
+* une caméra
+* un personnage
+* une voiture
+
+puis considérer le projet terminé.
+
+Tous les systèmes principaux doivent être réellement reliés.
+
+Exemple :
+
+Le joueur trouve une pièce.
+
+→ elle entre dans son inventaire.
+
+→ son poids augmente.
+
+→ il peut la transporter.
+
+→ il peut l'utiliser pour réparer un véhicule.
+
+→ le véhicule change réellement d'état.
+
+→ le joueur peut sauvegarder.
+
+→ après rechargement, le véhicule reste réparé.
+
+C'est ce niveau de cohérence qui est attendu.
+
+---
+
+# 99. INTÉGRATION DES SYSTÈMES
+
+Les systèmes doivent communiquer entre eux.
+
+Exemples :
+
+Météo → température → survie.
+
+Pluie → terrain humide → ambiance → audio.
+
+Jour/nuit → lumière → animaux → visibilité.
+
+Inventaire → poids → endurance.
+
+Fouille → ressources → réparation.
+
+Réparation → véhicule → exploration.
+
+Base → coffres → inventaire → sauvegarde.
+
+Exploration → découverte → carte.
+
+Mort → sauvegarde → respawn.
+
+Tout doit former un ensemble cohérent.
+
+---
+
+# 100. PRIORITÉ DES SYSTÈMES
+
+Si le projet devient trop lourd, respecter cet ordre :
+
+PRIORITÉ 1 :
+
+* moteur
+* monde
+* joueur
+* exploration
+* terrain
+* bâtiments
+* interactions
+* inventaire
+* sauvegarde
+
+PRIORITÉ 2 :
+
+* météo
+* jour/nuit
+* survie
+* animaux
+* réparation
+* véhicules
+* base
+
+PRIORITÉ 3 :
+
+* effets avancés
+* détails supplémentaires
+* systèmes secondaires
+
+NE PAS sacrifier les systèmes fondamentaux pour ajouter des effets graphiques.
+
+---
+
+# 101. PHILOSOPHIE DE DÉVELOPPEMENT
+
+Toujours privilégier :
+
+1. Fonctionnel
+2. Cohérent
+3. Réaliste
+4. Immersif
+5. Performant
+6. Esthétique
+
+Un système simple mais parfaitement fonctionnel est préférable à un système complexe et instable.
+
+---
+
+# 102. TESTS
+
+Après chaque gros système, effectuer des vérifications.
+
+Tester :
+
+* déplacement
+* collisions
+* terrain
+* eau
+* bâtiments
+* portes
+* inventaire
+* poids
+* faim
+* soif
+* fatigue
+* sauvegarde
+* chargement
+* météo
+* jour/nuit
+* véhicules
+* réparation
+* base
+* coffres
+* animaux
+
+---
+
+# 103. TEST DE PERSISTANCE
+
+Faire particulièrement attention aux sauvegardes.
+
+Tester :
+
+1. prendre un objet
+2. fermer le jeu
+3. relancer
+4. vérifier que l'objet est toujours pris
+
+Puis :
+
+1. placer un coffre
+2. mettre des objets dedans
+3. quitter
+4. relancer
+5. vérifier le coffre
+
+Puis :
+
+1. réparer un véhicule
+2. sauvegarder
+3. quitter
+4. relancer
+5. vérifier que le véhicule est toujours réparé
+
+---
+
+# 104. TEST DE PERFORMANCE
+
+Tester avec un monde chargé.
+
+Surveiller :
+
+* FPS
+* mémoire
+* draw calls
+* triangles
+* génération de chunks
+* nombre d'objets
+* nombre d'animaux
+* temps de chargement
+
+Éviter les grosses baisses de performances lors :
+
+* de l'entrée dans une forêt
+* de l'arrivée dans un bâtiment
+* de l'arrivée près d'une base
+* du changement de chunk
+* de l'apparition de pluie
+
+---
+
+# 105. OBJECTIF FINAL
+
+Le résultat doit donner l'impression d'un véritable jeu d'exploration réaliste.
+
+Le joueur doit pouvoir :
+
+→ commencer avec presque rien
+
+→ explorer un immense environnement naturel
+
+→ découvrir des bâtiments abandonnés
+
+→ entrer dans les maisons
+
+→ fouiller les pièces
+
+→ récupérer des objets
+
+→ gérer son sac à dos
+
+→ manger
+
+→ boire
+
+→ dormir
+
+→ courir
+
+→ grimper
+
+→ nager
+
+→ rencontrer des animaux
+
+→ éviter ou affronter certains animaux dangereux
+
+→ trouver des outils
+
+→ récupérer des pièces
+
+→ réparer des objets
+
+→ réparer des véhicules
+
+→ utiliser des véhicules
+
+→ trouver un endroit intéressant
+
+→ transformer un bâtiment en base
+
+→ placer des coffres
+
+→ stocker ses ressources
+
+→ améliorer progressivement son refuge
+
+→ sauvegarder
+
+→ quitter le jeu
+
+→ revenir plus tard
+
+→ retrouver exactement son monde et ses modifications.
+
+---
+
+# 106. EXPÉRIENCE RECHERCHÉE
+
+L'expérience doit être :
+
+CALME.
+
+IMMERSIVE.
+
+RÉALISTE.
+
+SOLITAIRE.
+
+MYSTÉRIEUSE.
+
+LIBRE.
+
+Le joueur doit pouvoir passer 30 minutes à simplement explorer une forêt sans qu'un système lui dise constamment quoi faire.
+
+Il doit pouvoir marcher jusqu'au sommet d'une montagne.
+
+Observer un lac.
+
+Découvrir une maison abandonnée.
+
+Entrer.
+
+Fouiller.
+
+Trouver une vieille carte.
+
+Continuer son chemin.
+
+Puis revenir plusieurs heures plus tard et décider :
+
+"Cette maison sera ma base."
+
+Cette liberté est au cœur de SOLITUDE HORIZON.
+
+---
+
+# 107. RÈGLE ABSOLUE DE RÉALISME
+
+Chaque fois que tu dois choisir entre :
+
+A. une mécanique spectaculaire mais artificielle
+
+et
+
+B. une mécanique plus simple mais réaliste
+
+CHOISIS B.
+
+Chaque fois que tu dois choisir entre :
+
+A. davantage d'objets mais moins de détails
+
+et
+
+B. moins d'objets mais un monde plus crédible
+
+CHOISIS B.
+
+Chaque fois que tu dois choisir entre :
+
+A. davantage d'effets graphiques et moins de FPS
+
+et
+
+B. une meilleure fluidité avec des effets intelligemment limités
+
+CHOISIS B.
+
+---
+
+# 108. RÈGLE ABSOLUE DE PERFORMANCE
+
+Le jeu doit être conçu pour fonctionner sur un PC milieu de gamme.
+
+Ne jamais considérer qu'une fonctionnalité est acceptable simplement parce qu'elle fonctionne sur un PC puissant.
+
+Toute fonctionnalité coûteuse doit avoir :
+
+* un fallback
+* un niveau de qualité inférieur
+* ou une optimisation appropriée
+
+---
+
+# 109. RÈGLE ABSOLUE DE QUALITÉ
+
+Ne jamais simuler une fonctionnalité uniquement avec une interface si elle est censée être réellement présente dans le monde.
+
+Exemple :
+
+Mauvais :
+"Réparer la voiture" → clic → animation → voiture réparée sans logique.
+
+Bon :
+Diagnostic → pièces nécessaires → inventaire → réparation → changement d'état réel → sauvegarde.
+
+---
+
+# 110. RÈGLE ABSOLUE DE CONTINUITÉ
+
+Le monde doit sembler exister même lorsque le joueur ne regarde pas.
+
+Les systèmes peuvent être simplifiés à distance pour les performances, mais ils doivent rester cohérents.
+
+Les animaux doivent réapparaître logiquement.
+
+La météo doit évoluer.
+
+Le temps doit avancer.
+
+La nature doit donner l'impression d'un environnement permanent.
+
+---
+
+# 111. DÉVELOPPEMENT PAR PHASES
+
+Ne pas essayer de tout générer en une seule étape si cela compromet la qualité.
+
+PHASE 1 :
+Moteur + monde + terrain + joueur.
+
+PHASE 2 :
+Végétation + eau + météo + jour/nuit.
+
+PHASE 3 :
+Bâtiments + exploration intérieure + interactions.
+
+PHASE 4 :
+Inventaire + faim + soif + sommeil + endurance.
+
+PHASE 5 :
+Fouille + ressources + réparation.
+
+PHASE 6 :
+Véhicules.
+
+PHASE 7 :
+Animaux + IA.
+
+PHASE 8 :
+Base + coffres + aménagement.
+
+PHASE 9 :
+Sauvegarde complète.
+
+PHASE 10 :
+Optimisation.
+
+PHASE 11 :
+Polish graphique + audio + immersion.
+
+PHASE 12 :
+Tests complets.
+
+À chaque phase, le jeu doit rester jouable.
+
+---
+
+# 112. INTERDICTION DE FAIRE SEMBLANT
+
+Ne jamais écrire :
+
+"TODO: implement later"
+
+pour une fonctionnalité annoncée comme terminée.
+
+Ne jamais créer de bouton qui ne fait rien.
+
+Ne jamais créer une interface pour une mécanique inexistante.
+
+Ne jamais déclarer une fonctionnalité terminée si elle ne fonctionne pas réellement.
+
+Si une fonctionnalité est impossible ou trop coûteuse :
+
+* l'indiquer clairement
+* proposer une version simplifiée
+* l'implémenter correctement
+
+---
+
+# 113. SI UNE TECHNOLOGIE EST MEILLEURE
+
+Tu peux modifier les choix techniques proposés si tu connais une meilleure solution.
+
+La priorité est :
+
+qualité finale > fidélité à une bibliothèque précise.
+
+Mais toute modification doit rester compatible avec :
+
+* navigateur
+* fonctionnement offline
+* PC milieu de gamme
+* architecture maintenable
+
+---
+
+# 114. LIVRABLE FINAL
+
+Produire un projet complet.
+
+Fournir tous les fichiers nécessaires.
+
+Ne pas fournir uniquement des extraits.
+
+Chaque fichier doit être clairement identifié.
+
+Exemple :
+
+FILE: index.html
+
+[code]
+
+FILE: css/main.css
+
+[code]
+
+FILE: js/main.js
+
+[code]
+
+etc.
+
+---
+
+# 115. DOCUMENTATION
+
+Fournir à la fin :
+
+* structure du projet
+* dépendances
+* installation
+* lancement
+* fonctionnement offline
+* contrôles
+* architecture
+* système de sauvegarde
+* système de génération du monde
+* système de chunks
+* options graphiques
+* procédure de debug
+
+---
+
+# 116. CRITÈRES DE VALIDATION
+
+Le projet est considéré comme réussi uniquement si :
+
+[ ] Le joueur peut se déplacer.
+
+[ ] Les collisions fonctionnent.
+
+[ ] Le terrain est généré.
+
+[ ] Le monde est déterministe.
+
+[ ] Le monde est suffisamment vaste.
+
+[ ] Les chunks fonctionnent.
+
+[ ] La végétation est optimisée.
+
+[ ] Les bâtiments existent.
+
+[ ] Les bâtiments peuvent être explorés.
+
+[ ] Les objets peuvent être récupérés.
+
+[ ] L'inventaire fonctionne.
+
+[ ] Le poids fonctionne.
+
+[ ] La faim fonctionne.
+
+[ ] La soif fonctionne.
+
+[ ] La fatigue fonctionne.
+
+[ ] L'endurance fonctionne.
+
+[ ] Les animaux fonctionnent.
+
+[ ] Certains animaux peuvent être dangereux.
+
+[ ] La météo fonctionne.
+
+[ ] Le jour/nuit fonctionne.
+
+[ ] L'eau fonctionne.
+
+[ ] La nage fonctionne.
+
+[ ] L'escalade fonctionne.
+
+[ ] Les véhicules fonctionnent.
+
+[ ] Les réparations fonctionnent.
+
+[ ] La base fonctionne.
+
+[ ] Les coffres fonctionnent.
+
+[ ] Les objets placés persistent.
+
+[ ] La carte fonctionne.
+
+[ ] La sauvegarde fonctionne.
+
+[ ] Le chargement fonctionne.
+
+[ ] Le jeu peut fonctionner hors ligne après installation/chargement initial.
+
+[ ] Le jeu est optimisé pour un PC milieu de gamme.
+
+[ ] Le jeu reste visuellement très réaliste.
+
+[ ] Aucun système majeur n'est simplement simulé par un faux bouton.
+
+---
+
+# 117. PRIORITÉ FINALE
+
+Si tu dois retenir seulement cinq choses :
+
+1. ULTRA RÉALISME.
+2. IMMERSION.
+3. EXPLORATION LIBRE.
+4. PERFORMANCE SUR PC MILIEU DE GAMME.
+5. SYSTÈMES RÉELLEMENT FONCTIONNELS.
+
+SOLITUDE HORIZON doit être un jeu d'exploration réaliste dans lequel le joueur se sent réellement seul dans un monde naturel abandonné.
+
+La technologie doit servir cette expérience, pas l'inverse.
+
+Commence par construire une architecture solide et évolutive.
+
+Ne détruis jamais l'architecture pour gagner quelques lignes de code.
+
+Ne réduis pas la qualité du monde simplement pour ajouter artificiellement des fonctionnalités.
+
+Construis un véritable jeu.
