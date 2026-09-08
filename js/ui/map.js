@@ -259,11 +259,18 @@ export class MapSystem {
       const def = this.world.poi.defs.get(id);
       if (!def || def.kind === 'town' || def.kind === 'village') continue;
       const dx = def.x - p.x, dz = def.z - p.z;
-      if (Math.abs(dx) > range / 2 || Math.abs(dz) > range / 2) continue;
-      const px = size / 2 + (dx / range) * size;
-      const py = size / 2 + (dz / range) * size;
-      ctx.fillStyle = 'rgba(232, 214, 176, 0.9)';
-      ctx.fillRect(px - 2, py - 2, 4, 4);
+      const big = def.kind === 'town' || def.kind === 'village';
+      const lim = big ? range : range / 2;
+      if (Math.abs(dx) > lim || Math.abs(dz) > lim) continue;
+      const px = Math.min(size - 4, Math.max(4, size / 2 + (dx / range) * size));
+      const py = Math.min(size - 4, Math.max(4, size / 2 + (dz / range) * size));
+      if (def.kind === 'town') {
+        ctx.fillStyle = 'rgba(232, 195, 122, 0.95)';
+        ctx.fillRect(px - 3, py - 3, 6, 6);
+      } else {
+        ctx.fillStyle = 'rgba(232, 214, 176, 0.9)';
+        ctx.fillRect(px - 2, py - 2, 4, 4);
+      }
     }
     ctx.restore();
 
