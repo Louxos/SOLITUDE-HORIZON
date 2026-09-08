@@ -22,8 +22,6 @@ const SKY_VERT = `
 const SKY_FRAG = `
   precision highp float;
   #include <common>
-  #include <tonemapping_pars_fragment>
-  #include <colorspace_pars_fragment>
   varying vec3 vWorldDir;
   uniform vec3 uZenith;
   uniform vec3 uHorizon;

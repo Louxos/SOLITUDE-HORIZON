@@ -34,6 +34,50 @@ export class Terrain {
     this.nField = new Noise(seed + 505);
     this.roads = new RoadNetwork(seed, (x, z) => this.baseHeight(x, z));
     this._cache = new Map();
+    this.pads = new Map();      // grille de cellules -> platages (bâtiments, places)
+    this.padCount = 0;
+    this.padsFrozen = false;    // vrai une fois la génération terminée (perfs)
+  }
+
+  /**
+   * Enregistre une zone d'aplanissement (dalle de bâtiment, place de village,
+   * carrière…). Le terrain est ramené à `y` dans `inner` puis rejoint
+   * naturellement le relief entre `inner` et `outer`.
+   * @returns {object} le platage créé (pour d'éventuels ajustements)
+   */
+  addPad(x, z, y, inner, outer) {
+    const pad = { x, z, y, inner, outer };
+    const cell = 64;
+    const c0x = Math.floor((x - outer) / cell), c1x = Math.floor((x + outer) / cell);
+    const c0z = Math.floor((z - outer) / cell), c1z = Math.floor((z + outer) / cell);
+    for (let cz = c0z; cz <= c1z; cz++) {
+      for (let cx = c0x; cx <= c1x; cx++) {
+        const key = cx * 73856093 ^ cz * 19349663;
+        let arr = this.pads.get(key);
+        if (!arr) { arr = []; this.pads.set(key, arr); }
+        arr.push(pad);
+      }
+    }
+    this.padCount++;
+    return pad;
+  }
+
+  /** Applique les platages : celui de plus forte influence l'emporte. */
+  applyPads(x, z, h) {
+    if (!this.padCount) return h;
+    const arr = this.pads.get(Math.floor(x / 64) * 73856093 ^ Math.floor(z / 64) * 19349663);
+    if (!arr) return h;
+    let bestW = 0, out = h;
+    for (const pad of arr) {
+      const d = Math.hypot(x - pad.x, z - pad.z);
+      if (d >= pad.outer) continue;
+      const w = d <= pad.inner ? 1 : 1 - smoothstep(pad.inner, pad.outer, d);
+      if (w > bestW) {
+        bestW = w;
+        out = pad.y + (h - pad.y) * (1 - w);
+      }
+    }
+    return out;
   }
 
   /** Relief naturel, sans influence des routes ni des bâtiments. */
@@ -74,8 +118,9 @@ export class Terrain {
   height(x, z) {
     const h0 = this.baseHeight(x, z);
     const inf = this.roads.influence(x, z);
-    if (inf.w <= 0) return h0;
-    return lerp(h0, inf.y, inf.w * 0.94);
+    let h = inf.w <= 0 ? h0 : lerp(h0, inf.y, inf.w * 0.94);
+    if (this.padCount) h = this.applyPads(x, z, h);
+    return h;
   }
 
   /** Altitude avec petit cache (utilisé par la physique à chaque frame). */
@@ -188,5 +233,22 @@ export class Terrain {
     }
     if (best && best.slope <= maxSlope + 6) return best;
     return null;
+  }
+
+  /**
+   * Altitude moyenne sous une empreinte rectangulaire (pour poser une dalle
+   * de bâtiment bien ancrée, ni flottante ni enterrée).
+   */
+  footprintHeight(x, z, halfW, halfD, yaw = 0) {
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
+    let sum = 0, n = 0;
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        const lx = i * halfW * 0.8, lz = j * halfD * 0.8;
+        sum += this.height(x + lx * cos + lz * sin, z + -lx * sin + lz * cos);
+        n++;
+      }
+    }
+    return sum / n;
   }
 }

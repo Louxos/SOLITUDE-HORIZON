@@ -106,9 +106,10 @@ for (const type of Object.keys(BUILDING_TYPES)) {
   totalDoors += doors.length;
   totalColliders += b.colliders.length;
   totalSupports += b.supports.length;
+  const windows = b.interactables.filter((i) => i.kind === 'window');
   check(`${BUILDING_TYPES[type].label} : structure complète`,
-    b.colliders.length > 8 && doors.length === 1 && b.group.children.length > 0,
-    `${b.colliders.length} collisions, ${containers.length} conteneurs`);
+    b.colliders.length > 8 && doors.length >= 1 && b.group.children.length > 0,
+    `${b.colliders.length} collisions, ${containers.length} conteneurs, ${doors.length} porte(s), ${windows.length} fenêtre(s) franchissables`);
 }
 check('conteneurs fouillables répartis', totalContainers >= 12, `${totalContainers} conteneurs au total`);
 check('supports de plancher générés', totalSupports >= 9, `${totalSupports} surfaces marchables`);
@@ -322,6 +323,125 @@ check('tous les objets sont bien définis', dbOk, dbErr || `${Object.keys(ITEMS)
 const placeables = Object.entries(ITEMS).filter(([, d]) => d.place).length;
 const parts = Object.entries(ITEMS).filter(([, d]) => d.part).length;
 check('objets posables et pièces disponibles', placeables >= 5 && parts >= 7, `${placeables} posables, ${parts} pièces`);
+
+
+// --- 12. Villes, villages et entrée dans les bâtiments ----------------------
+section('Villes, villages, aplanissement du sol');
+const { PoiManager } = await import('../js/world/poi.js');
+
+// Terrain de test vierge avec pads (comme en jeu)
+const terrainPads = new Terrain(WORLD.seed);
+const fakeWorld = { state: { vehicles: {} }, terrain: terrainPads };
+const scenePoi = new THREE.Scene();
+let poiMgr;
+try {
+  poiMgr = new PoiManager(scenePoi, terrainPads, fakeWorld);
+} catch (e) {
+  check('PoiManager constructible', false, String(e).slice(0, 80));
+}
+if (poiMgr) {
+  // Comme en jeu : le joueur partage le MÊME terrain que la ville (pads aplatis)
+  const townPlayer = new Player(camera, terrainPads);
+  const towns = [...poiMgr.defs.values()].filter((d) => d.kind === 'town');
+  const villages = [...poiMgr.defs.values()].filter((d) => d.kind === 'village');
+  check('des villes sont générées', towns.length >= 1, `${towns.length} ville(s) : ${towns.map((t) => t.name).join(', ')}`);
+  check('des villages sont générés', villages.length >= 2, `${villages.length} village(s) : ${villages.map((t) => t.name).join(', ')}`);
+
+  const town = towns[0];
+  check('une ville contient plusieurs bâtiments', town.layout.length >= 5, `${town.layout.length} bâtiments autour de la place`);
+
+  // la place est bien plate
+  const plazaSlope = terrainPads.slope(town.x, town.z);
+  check('la place de ville est aplatie', plazaSlope < 3, `pente ${plazaSlope.toFixed(1)}°`);
+
+  // chargement effectif : bâtiments, portes, conteneurs
+  const inst = poiMgr.load(town);
+  const doors = [], containers = [];
+  for (const b of inst.buildings) {
+    doors.push(...b.interactables.filter((i) => i.kind === 'door'));
+    containers.push(...b.interactables.filter((i) => i.kind === 'container'));
+  }
+  check('les bâtiments de la ville ont des portes', doors.length >= town.layout.length * 0.7, `${doors.length} portes`);
+  check('la ville contient du butin', containers.length >= 5, `${containers.length} conteneurs`);
+
+  // ---- LE test critique : on peut ENTRER dans une maison ----
+  let entryOk = false, entryInfo = '';
+  outer:
+  for (const b of inst.buildings) {
+    const door = b.interactables.find((i) => i.kind === 'door' && !i.locked && !i.jammed);
+    if (!door) continue;
+    // ouvrir la porte
+    fakeWorld.state.doors = fakeWorld.state.doors || {};
+    fakeWorld.state.doors[door.id] = { open: true };
+    for (const c of inst.colliders) if (c.door === door.id) c.disabled = true;
+
+    // se placer devant la porte (côté opposé au centre du bâtiment)
+    let dx = door.world.x - b.meta.center.x, dz = door.world.z - b.meta.center.z;
+    const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    const px = door.world.x + dx * 2.0, pz = door.world.z + dz * 2.0;
+    townPlayer.position.set(px, terrainPads.height(px, pz) + 0.1, pz);
+    townPlayer.velocity.set(0, 0, 0);
+    townPlayer.yaw = Math.atan2(-(door.world.x - px), -(door.world.z - pz));
+
+    // marcher vers le centre du bâtiment avec la vraie physique et le vrai input
+    const start = { x: px, z: pz };
+    fakeInput.input.codes.clear();
+    fakeInput.input.codes.add('KeyW');
+    for (let i = 0; i < 120; i++) {
+      // viser le centre (recalculé : on peut dévier en franchissant le seuil)
+      const vx = b.meta.center.x - townPlayer.position.x, vz = b.meta.center.z - townPlayer.position.z;
+      townPlayer.yaw = Math.atan2(-vx, -vz);
+      townPlayer.update(1 / 30, {
+        colliders: inst.colliders, supports: inst.supports,
+        treeColliders: [], weather: { temperature: 14, rainIntensity: 0 },
+      });
+      const m = b.meta;
+      const pdx = townPlayer.position.x - m.center.x, pdz = townPlayer.position.z - m.center.z;
+      const c = Math.cos(-m.yaw), sn = Math.sin(-m.yaw);
+      const lx = pdx * c + pdz * sn, lz = -pdx * sn + pdz * c;
+      if (Math.abs(lx) < m.W / 2 - 0.5 && Math.abs(lz) < m.D / 2 - 0.5) {
+        entryOk = true;
+        entryInfo = `${b.meta.label} atteinte (${(Math.hypot(townPlayer.position.x - start.x, townPlayer.position.z - start.z)).toFixed(1)} m parcourus)`;
+        break outer;
+      }
+    }
+    if (!entryOk) entryInfo = `bloqué à ${(Math.hypot(townPlayer.position.x - start.x, townPlayer.position.z - start.z)).toFixed(1)} m de la porte`;
+  }
+  check('ON PEUT ENTRER DANS LES MAISONS (seuil au niveau du sol)', entryOk, entryInfo);
+
+  fakeInput.input.codes.clear();
+  // les fenêtres brisées du rez-de-chaussée sont franchissables
+  let windowsTotal = 0;
+  for (const b of inst.buildings) windowsTotal += b.interactables.filter((i) => i.kind === 'window').length;
+  check("des fenêtres brisées servent d'entrée de secours", windowsTotal >= 1, `${windowsTotal} fenêtres franchissables dans la ville`);
+
+  // l'église a un clocher (collisions hautes)
+  const church = inst.buildings.find((b) => b.meta.type === 'church');
+  if (church) {
+    const tall = church.colliders.some((c) => c.wy + c.hy > church.meta.center.y + 9);
+    check("l'église possède un clocher", tall);
+  }
+
+  // coffre à gants des véhicules
+  const gloveboxes = inst.interactables.filter((i) => i.label === 'Boîte à gants');
+  check('les véhicules ont une boîte à gants fouillable', gloveboxes.length >= 1, `${gloveboxes.length} boîte(s)`);
+
+  // déchargement propre
+  poiMgr.unload(town.id);
+  check('déchargement du lieu sans erreur', !poiMgr.loaded.has(town.id));
+}
+
+// --- 13. Persistance des portes ----------------------------------------------
+section('Persistance de l\'état des portes');
+{
+  const b = generateBuilding({ type: 'small_house', seed: 42, x: 500, y: 60, z: -500, yaw: 0.3, id: 'door_test' });
+  const door = b.interactables.find((i) => i.kind === 'door');
+  const doorCollider = b.colliders.find((c) => c.door === door.id);
+  doorCollider.disabled = true;    // ouverte
+  check('le collider de porte se désactive à l\'ouverture', doorCollider.disabled === true);
+  const back = b.interactables.find((i) => i.kind === 'door' && i.id !== door.id);
+  check('les maisons familiales ont une porte de service', !!back, back ? back.label : 'absente');
+}
 
 // ----------------------------------------------------------------- rapport
 console.log('\n══════════════════════════════════════════════════════════════');

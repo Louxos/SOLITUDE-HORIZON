@@ -100,6 +100,7 @@ export class InteractionSystem {
         const state = this.world.state.doors[target.id];
         const open = state?.open ?? target.open;
         if (target.locked && !state?.unlocked) return { label: target.label, action: 'Verrouillée — forcer', key: 'E' };
+        if (target.jammed && !state?.unforced) return { label: target.label, action: 'Coincée — pousser', key: 'E' };
         return { label: target.label, action: open ? 'Fermer' : 'Ouvrir', key: 'E' };
       }
       case 'container':
@@ -114,6 +115,7 @@ export class InteractionSystem {
       case 'forage': return { label: target.label, action: 'Récolter', key: 'E' };
       case 'water': return { label: 'Eau', action: 'Boire / Remplir', key: 'E' };
       case 'carcass': return { label: target.label, action: 'Dépecer', key: 'E' };
+      case 'window': return { label: 'Fenêtre brisée', action: 'Franchir', key: 'E' };
       case 'placed': {
         const p = target.placed;
         if (p.type === 'chest') return { label: p.label, action: 'Ouvrir', key: 'E' };
@@ -149,9 +151,29 @@ export class InteractionSystem {
       case 'forage': return this.forage(target.forage);
       case 'water': return bus.emit('ui:water');
       case 'carcass': return world.butcher(target.carcass);
+      case 'window': return this.climbThroughWindow(target);
       case 'placed': return world.base.usePlaced(target.placed);
       default: break;
     }
+  }
+
+  /** Entrer/sortir par une fenêtre brisée : coûte un peu d'endurance. */
+  climbThroughWindow(target) {
+    const player = this.player;
+    if (player.stats.stamina < 10) {
+      bus.emit('notify', { text: 'Trop épuisé pour grimper.', kind: 'warn' });
+      return;
+    }
+    // dehors -> dedans, ou l'inverse selon la position actuelle
+    const inside = target.worldInside;
+    const outside = target.worldOutside;
+    const toInside = this.player.position.distanceTo(outside) < this.player.position.distanceTo(inside);
+    const dest = toInside ? inside : outside;
+    player.stats.stamina -= 10;
+    player.position.set(dest.x, dest.y + 0.1, dest.z);
+    player.velocity.set(0, 0, 0);
+    bus.emit('audio:sfx', { name: 'jump', surface: 'wood' });
+    bus.emit('notify', { text: toInside ? 'Vous vous glissez à l\'intérieur.' : 'Vous ressortez par la fenêtre.', kind: 'info' });
   }
 
   useDoor(target) {
@@ -181,6 +203,22 @@ export class InteractionSystem {
         bus.emit('notify', { text: 'La serrure cède.', kind: 'info' });
         bus.emit('audio:sfx', { name: 'repair' });
       }
+    }
+    // Porte coincée : il faut pousser deux fois
+    if (target.jammed && !state.unforced) {
+      if (this.player.stats.stamina < 8) {
+        bus.emit('notify', { text: 'Trop épuisé pour forcer la porte.', kind: 'warn' });
+        return;
+      }
+      state.pushes = (state.pushes || 0) + 1;
+      this.player.stats.stamina -= 8;
+      if (state.pushes < 2) {
+        bus.emit('notify', { text: 'La porte résiste… poussez encore.', kind: 'info' });
+        bus.emit('audio:sfx', { name: 'locked' });
+        return;
+      }
+      state.unforced = true;
+      bus.emit('notify', { text: 'La porte cède avec un craquement.', kind: 'info' });
     }
     state.open = !state.open;
     this.world.applyDoorState(target, state.open);

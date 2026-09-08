@@ -141,6 +141,10 @@ export class Menu {
       'Un véhicule réparé transforme votre rayon d\'exploration.',
       'Fouillez les tiroirs, les armoires et les établis : rien n\'est posé au hasard.',
       'Le poids ralentit et fatigue. Un coffre dans votre refuge est précieux.',
+      'Suivez les routes : elles mènent aux villes et aux villages abandonnés.',
+      'Une porte verrouillée cède avec une clé… ou un outil et un peu d\'énergie.',
+      'Les fenêtres brisées du rez-de-chaussée offrent une entrée de secours.',
+      'Les boîtes à gants des épaves cachent parfois des pièces ou des cartes.',
     ];
     document.getElementById('loading-tip').textContent = tips[Math.floor(Math.random() * tips.length)];
     document.getElementById('loading-text').textContent = text;

@@ -33,7 +33,7 @@ Cliquer sur la fenêtre pour capturer la souris (pointer lock). `Échap` la lib�
 ### Hors ligne
 
 Au premier chargement, un *service worker* (`sw.js`) met en cache la totalité du jeu
-(HTML, CSS, 33 modules JS, Three.js). Les visites suivantes fonctionnent **sans connexion**.
+(HTML, CSS, 34 modules JS, Three.js). Les visites suivantes fonctionnent **sans connexion**.
 Le jeu est aussi installable comme application (PWA) via `manifest.webmanifest`.
 Toutes les textures, géométries, sons et le monde sont générés à l'exécution : aucun asset binaire.
 
@@ -69,14 +69,26 @@ forêt de conifères, alpin, roche, marais, lande, friche agricole, rivage, ébo
 lissés jusqu'à 17 % de déclivité maximum, avec bas-côtés, gravats et végétation qui reconquiert
 le bitume.
 
-**Streaming.** Chunks de 256 m avec 4 niveaux de LOD (2 597 → 77 sommets), chargés/déchargés en
-fonction de la position ; 225 chunks résidents, ~5 ms de construction par chunk. Végétation en
-`InstancedMesh` (arbres, buissons, herbes, rochers) avec vent dans le vertex shader.
+**Streaming.** Chunks de 256 m avec 4 niveaux de LOD (4 485 → 117 sommets), chargés/déchargés en
+fonction de la position ; 225 chunks résidents. Végétation en `InstancedMesh` (arbres, buissons,
+rochers) avec vent dans le vertex shader, et jusqu'à **14 000 brins d'herbe** animés autour du
+joueur. Forêts plus denses, sous-bois envahis : la nature reconquiert tout.
 
-**Lieux.** 108 points d'intérêt persistants : hameaux, fermes, cabanes, garages, sites industriels,
-abris de chasse, campements, grottes, points de vue, épaves. Neuf archétypes de bâtiments générés
-procéduralement, **tous pénétrables** : portes qui s'ouvrent, étages, escaliers, meubles, vitres
-brisées, toitures effondrées selon un état de dégradation, mousse et lierre.
+**Villes et villages.** Deux **villes abandonnées** et trois villages s'égrennent le long des
+routes asphaltées : une place centrale aplatie (le terrain est localement re-nivelé sous chaque
+bâtiment — les seuils de porte affleurent le sol), un anneau de bâtiments tournés vers la place,
+puits ou fontaine, lampadaires, bancs, panneaux de direction, épaves garées. On y trouve
+église à clocher, commerces en brique, station-service, ateliers. Chaque lieu a un **nom unique**,
+révélé par une notification à l'approche et tracé sur la carte (villes en encadré, villages
+marqués ⌂).
+
+**Lieux.** ~109 points d'intérêt persistants : villes, villages, hameaux, fermes, cabanes,
+garages, sites industriels, abris de chasse, campements, grottes, points de vue, belvédères,
+épaves. **Douze types de bâtiments** générés procéduralement, **tous pénétrables** : portes qui
+s'ouvrent (certaines verrouillées ou coincées — deux poussées à l'épaule viennent à bout des
+secondes), portes de service, **fenêtres brisées franchissables au rez-de-chaussée**, étages,
+escaliers, meubles, toitures effondrées selon un état de dégradation, mousse, lierre et plinthes
+de soubassement. Les boîtes à gants des épaves se fouillent.
 
 **Eau.** Lacs et rivières : on patauge, puis on nage au-delà de 1,25 m ; l'endurance descend,
 la température corporelle aussi.
@@ -102,11 +114,13 @@ Tout est relié : **fouiller → poids → réparer → conduire → sauvegarder
 - **Survie** : santé, endurance, faim, soif, fatigue, température corporelle (mouillé + vent =
   hypothermie). Dégradation lente et lisible ; la privation totale tue en ~3,5 min réelles, jamais
   par surprise.
-- **Inventaire** : 24 emplacements, **38 kg** de charge — au-delà, on ralentit. 48 objets répartis
+- **Inventaire** : 24 emplacements, **38 kg** de charge — au-delà, on ralentit. 51 objets répartis
   en nourriture, boisson, soin, outil, pièce mécanique, ressource, mobilier, carburant.
 - **Butin crédible** : rien n'apparaît par magie. Le contenu est tiré paresseusement (déterministe,
   fonction du lieu et de la graine) **dans** les placards, tiroirs, boîtes à outils, coffres de
-  voiture, casiers d'atelier — 27 conteneurs pour une poignée de lieux, ~2 objets chacun.
+  voiture, casiers d'atelier — une seule ville abrite près de 80 conteneurs, ~2 à 3 objets chacun.
+  Tables de butin dédiées : cuisine, chambre, salle de bain, garage, atelier, appentis, commerce,
+  station-service, chapelle, véhicule, grotte.
 - **Réparation** : chaque véhicule a batterie, bougies, courroie, alternateur, durite, pneus,
   freins, plein de carburant. `R` lance un **diagnostic** qui liste ce qui manque ; chaque pièce
   demande l'objet **et** l'outil adapté (clé, cric, tournevis) et plusieurs étapes. Quand les
@@ -115,8 +129,10 @@ Tout est relié : **fouiller → poids → réparer → conduire → sauvegarder
 - **Base** : n'importe quel bâtiment devient un camp. Caisses de rangement, lit (dormir jusqu'à
   l'aube), feu de camp (cuisiner, se réchauffer, faire bouillir l'eau), lanternes, établi.
   Chaque objet posé est persisté avec son contenu.
-- **Découvertes** : approcher un lieu à moins de 55 m le révèle sur la carte et affiche une
-  notification discrète ; la carte (`M`) se remplit par cellules de 64 m au fil de l'exploration.
+- **Découvertes** : approcher un lieu le révèle sur la carte et affiche une notification discrète
+  (160 m pour une ville, 100 m pour un village, 55–85 m pour le reste) ; la carte (`M`) se remplit
+  par cellules de 64 m au fil de l'exploration. En cas de mort, le réapparition propose le refuge,
+  sinon **le lieu sûr découvert le plus proche**.
 
 ---
 
@@ -146,7 +162,7 @@ Cible : **1080p / 60 FPS sur PC milieu de gamme**.
 
 ## 7. Architecture
 
-Aucun fichier monolithique : 33 modules ES, ~9 300 lignes, zéro dépendance npm
+Aucun fichier monolithique : 34 modules ES, ~9 200 lignes, zéro dépendance npm
 (Three.js r180 est *vendored* dans `vendor/`).
 
 ```
@@ -155,7 +171,7 @@ css/         main.css · ui.css
 vendor/three/ three.module.min.js (r180, MIT)
 js/
   main.js            amorçage, écran de chargement, boucle, service worker
-  core/              config, rng, noise, events (bus), input, settings, engine, textures, geometry
+  core/              config, rng, noise, events (bus), input, settings, engine, textures (22 gabarits procéduraux, dont brique), geometry
   world/             terrain, roads, chunks, vegetation, water, buildings, vehicles, poi, world
   environment/       sky (shader), weather
   player/            player (déplacement, collisions, nage, escalade, head bob)
@@ -180,14 +196,17 @@ Un harnais de test hors navigateur exécute les vrais modules du jeu dans Node (
 simulés par `tools/headless-shim.mjs`) :
 
 ```bash
-node tools/headless-test.mjs      # 61 assertions, ~2,4 s, code de sortie 1 si échec
+node tools/headless-test.mjs      # 77 assertions, ~2,6 s, code de sortie 1 si échec
 ```
 
 Il couvre : déterminisme du terrain, relief et biomes, routes et déclivité, chunks et LOD,
-les 9 types de bâtiments (colliders, conteneurs), le butin et le poids, la chaîne complète
-diagnostic → réparation → conduite → sérialisation d'un véhicule, la survie sur plusieurs minutes
-simulées, la physique du joueur (chute et dégâts, murs, planchers, nage), la météo sur 40 minutes
-simulées, la sauvegarde/rechargement et la base d'objets.
+les **12 types de bâtiments** (colliders, conteneurs, portes, fenêtres), le butin et le poids,
+la chaîne complète diagnostic → réparation → conduite → sérialisation d'un véhicule, la survie
+sur plusieurs minutes simulées, la physique du joueur (chute et dégâts, murs, planchers, nage),
+la météo sur 40 minutes simulées, la sauvegarde/rechargement et la base d'objets — plus la
+**génération des villes/villages** (aplatissement de la place, portes, butin, clocher, boîtes à
+gants) et le test critique : *un joueur qui marche réellement jusqu'à une porte ouverte et entre
+dans la maison* (vitesse, collisions et seuil vérifiés frame par frame).
 
 Vérification des imports et de la syntaxe de l'ensemble du graphe de modules :
 

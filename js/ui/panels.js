@@ -554,8 +554,20 @@ export class Panels {
     if (home) {
       world.player.position.copy(home).setY(world.terrain.height(home.x, home.z) + 0.2);
     } else {
-      const spawn = world.findSpawn();
-      world.player.spawn(spawn.x, spawn.z);
+      // lieu "sûr" découvert le plus proche (ville, village, hameau, ferme, refuge)
+      let best = null, bestD = Infinity;
+      for (const id of world.state.discovered) {
+        const def = world.poi.defs.get(id);
+        if (!def || !['town', 'village', 'hamlet', 'farm', 'shelter', 'cabin'].includes(def.kind)) continue;
+        const d = Math.hypot(def.x - world.player.position.x, def.z - world.player.position.z);
+        if (d < bestD) { bestD = d; best = def; }
+      }
+      if (best) {
+        world.player.position.set(best.x, world.terrain.height(best.x, best.z) + 0.2, best.z);
+      } else {
+        const spawn = world.findSpawn();
+        world.player.spawn(spawn.x, spawn.z);
+      }
     }
     world.player.velocity.set(0, 0, 0);
     world.sky.advance(6);

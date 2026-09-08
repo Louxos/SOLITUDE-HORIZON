@@ -159,7 +159,13 @@ export class World {
   // ---------------------------------------------------------------- portes
   applyDoorState(target, open) {
     if (target.object) {
-      target.object.rotation.y = open ? -Math.PI * 0.62 : 0;
+      if (target.slide) {
+        // porte de garage : coulisse vers le haut
+        target.object.position.y = open ? target.doorHeight * 0.92 : 0;
+      } else {
+        // porte battante : s'ouvre vers l'extérieur du bâtiment
+        target.object.rotation.y = open ? (target.swing || -1) * -Math.PI * 0.62 : 0;
+      }
     }
     target.open = open;
     for (const inst of this.poi.loaded.values()) {
@@ -394,5 +400,9 @@ export class World {
     this.base.fromJSON(data.base);
     for (const id of this.state.discovered || []) this.poi.discovered.add(id);
     this.containersCache = new Map();
+    // Sécurité : si le relief a évolué (aplanissement des dalles), on ne
+    // laisse jamais le joueur sous le sol.
+    const p = this.player.position;
+    p.y = Math.max(p.y, this.terrain.height(p.x, p.z) + 0.05);
   }
 }

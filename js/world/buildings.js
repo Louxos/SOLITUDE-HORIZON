@@ -4,6 +4,15 @@
  * Un bâtiment = murs modulaires percés (portes/fenêtres), pièces intérieures,
  * mobilier, conteneurs fouillables, portes articulées, végétation envahissante.
  * Tout est déterministe (seed) et fournit ses collisions + ses interactions.
+ *
+ * Améliorations v2 :
+ *  - empreinte déterministe exportée (buildingFootprint) pour aplanir le sol
+ *    avant la construction (le joueur peut ENTRER : plus de dalle flottante) ;
+ *  - marches de porte, portes arrière, entrée par les fenêtres brisées ;
+ *  - nouveaux types : commerce, église (clocher), station-service ;
+ *  - habillage : plinthes, encadrements+meneaux, appuis de fenêtre, débords de
+ *    toit, faîtage, cheminée à chapeau, porches, auvents, moquettes, rideaux,
+ *    luminaires plafond.
  */
 
 import * as THREE from '../../vendor/three/three.module.min.js';
@@ -14,14 +23,17 @@ import { settings } from '../core/settings.js';
 
 export const BUILDING_TYPES = {
   cabin: { label: 'Cabane', w: [5, 7], d: [4, 6], floors: 1, rooms: 1, wall: 'wood', roof: 'metal', loot: ['shed'] },
-  small_house: { label: 'Petite maison', w: [7, 9], d: [6, 8], floors: 1, rooms: 3, wall: 'plaster', roof: 'tile', loot: ['kitchen', 'bedroom', 'bathroom'] },
-  family_house: { label: 'Maison familiale', w: [9, 12], d: [7, 10], floors: 2, rooms: 4, wall: 'plaster', roof: 'tile', loot: ['kitchen', 'bedroom', 'bathroom', 'bedroom'] },
-  farm: { label: 'Ferme', w: [11, 15], d: [8, 11], floors: 2, rooms: 4, wall: 'stone', roof: 'tile', loot: ['kitchen', 'workshop', 'bedroom', 'shed'] },
-  chalet: { label: 'Chalet', w: [8, 10], d: [6, 8], floors: 1, rooms: 2, wall: 'wood', roof: 'wood', loot: ['kitchen', 'bedroom'] },
-  garage: { label: 'Garage', w: [7, 9], d: [6, 7], floors: 1, rooms: 1, wall: 'concrete', roof: 'metal', loot: ['garage'], garageDoor: true },
-  workshop: { label: 'Atelier', w: [9, 12], d: [7, 9], floors: 1, rooms: 2, wall: 'concrete', roof: 'metal', loot: ['workshop', 'garage'] },
+  small_house: { label: 'Petite maison', w: [7, 9], d: [6, 8], floors: 1, rooms: 3, wall: 'plaster', roof: 'tile', loot: ['kitchen', 'bedroom', 'bathroom'], backDoor: true, porch: 0.5 },
+  family_house: { label: 'Maison familiale', w: [9, 12], d: [7, 10], floors: 2, rooms: 4, wall: 'plaster', roof: 'tile', loot: ['kitchen', 'bedroom', 'bathroom', 'bedroom'], backDoor: true, porch: 0.55 },
+  farm: { label: 'Ferme', w: [11, 15], d: [8, 11], floors: 2, rooms: 4, wall: 'stone', roof: 'tile', loot: ['kitchen', 'workshop', 'bedroom', 'shed'], backDoor: true },
+  chalet: { label: 'Chalet', w: [8, 10], d: [6, 8], floors: 1, rooms: 2, wall: 'wood', roof: 'wood', loot: ['kitchen', 'bedroom'], porch: 0.45 },
+  garage: { label: 'Garage', w: [7, 9], d: [6, 7], floors: 1, rooms: 1, wall: 'concrete', roof: 'metal', loot: ['garage'], garageDoor: true, roofStyle: 'flat' },
+  workshop: { label: 'Atelier', w: [9, 12], d: [7, 9], floors: 1, rooms: 2, wall: 'concrete', roof: 'metal', loot: ['workshop', 'garage'], roofStyle: 'flat' },
   barn: { label: 'Bâtiment agricole', w: [12, 16], d: [9, 12], floors: 1, rooms: 1, wall: 'wood', roof: 'metal', loot: ['shed', 'workshop'], tall: true },
-  industrial: { label: 'Halle industrielle', w: [14, 18], d: [11, 14], floors: 1, rooms: 2, wall: 'concrete', roof: 'metal', loot: ['workshop', 'garage'], tall: true },
+  industrial: { label: 'Halle industrielle', w: [14, 18], d: [11, 14], floors: 1, rooms: 2, wall: 'concrete', roof: 'metal', loot: ['workshop', 'garage'], tall: true, roofStyle: 'flat' },
+  store: { label: 'Ancien commerce', w: [8, 11], d: [6, 9], floors: 1, rooms: 2, wall: 'brick', roof: 'concrete', loot: ['store', 'kitchen'], roofStyle: 'flat', awning: true },
+  church: { label: 'Église', w: [9, 11], d: [14, 18], floors: 1, rooms: 2, wall: 'stone', roof: 'tile', loot: ['chapel', 'chapel'], tall: true, tower: true },
+  gas_shop: { label: 'Boutique de station', w: [7, 9], d: [5, 7], floors: 1, rooms: 1, wall: 'brick', roof: 'metal', loot: ['gasstation'], roofStyle: 'flat', awning: true },
 };
 
 const WALL_T = 0.22;
@@ -35,6 +47,7 @@ function materials() {
   });
   MATS = {
     plaster: mk('plaster', { normalMap: getTexture('wallNormal') }),
+    brick: mk('brick', { normalMap: getTexture('wallNormal') }),
     wood: mk('wood'),
     concrete: mk('concrete', { normalMap: getTexture('wallNormal') }),
     stone: mk('rock'),
@@ -48,6 +61,8 @@ function materials() {
       map: getTexture('ivy'), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.9, vertexColors: true,
     }),
     fabric: new THREE.MeshStandardMaterial({ color: 0x6b6455, roughness: 0.98, vertexColors: true }),
+    rug: new THREE.MeshStandardMaterial({ color: 0x7c4b42, roughness: 0.99, vertexColors: true }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x3c3833, roughness: 0.95, vertexColors: true }),
   };
   return MATS;
 }
@@ -55,6 +70,19 @@ function materials() {
 function wallMaterialFor(kind) {
   const m = materials();
   return m[kind] || m.plaster;
+}
+
+/**
+ * Empreinte déterministe d'un bâtiment : dimensions + état de dégradation.
+ * Doit consommer le RNG exactement comme generateBuilding (mêmes tirages).
+ */
+export function buildingFootprint(type, seed, x, z) {
+  const spec = BUILDING_TYPES[type] || BUILDING_TYPES.small_house;
+  const rng = makeRng(hashInt(seed, Math.round(x), Math.round(z), 4242));
+  const W = rng.range(spec.w[0], spec.w[1]);
+  const D = rng.range(spec.d[0], spec.d[1]);
+  const condition = rng.range(0.25, 1);         // 0 = presque intact, 1 = ruine
+  return { W, D, floors: spec.floors, condition, tall: !!spec.tall };
 }
 
 /** Collecteur de géométries par matériau. */
@@ -150,7 +178,6 @@ function furnishRoom(room, roomType, rng, floorY, condition) {
     collide(pos.x, floorY + size[1] / 2, pos.z, size[0] / 2, size[1] / 2, size[2] / 2);
   };
 
-  const worn = 0xffffff;
   switch (roomType) {
     case 'kitchen': {
       const p = alongWall(0.45);
@@ -175,6 +202,7 @@ function furnishRoom(room, roomType, rng, floorY, condition) {
       // lit
       put('wood', box(1.35, 0.35, 2.0, [p.x, floorY + 0.18, p.z], [0, p.rot, 0]), 0x8a7a62);
       put('fabric', box(1.3, 0.22, 1.95, [p.x, floorY + 0.45, p.z], [0, p.rot, 0]), 0x9c9382);
+      put('fabric', box(0.62, 0.14, 0.4, [p.x, floorY + 0.62, p.z - 0.72], [0, p.rot, 0]), 0xc9c2b2);
       collide(p.x, floorY + 0.3, p.z, 0.75, 0.3, 1.05);
       out.bed = { position: new THREE.Vector3(p.x, floorY + 0.6, p.z) };
       const p2 = alongWall(0.4);
@@ -224,6 +252,47 @@ function furnishRoom(room, roomType, rng, floorY, condition) {
       addContainer('Vieille caisse', p2, [0.8, 0.65, 0.65], 'shed', 'wood', 0x93805f);
       break;
     }
+    case 'store': {
+      // rayonnages de boutique
+      for (let i = 0; i < 2; i++) {
+        const p = alongWall(0.55);
+        addContainer('Rayonnage', p, [2.4, 1.8, 0.55], 'store', 'wood', 0xb0a488);
+      }
+      const p3 = { x: cx, z: (room.z0 + room.z1) / 2 + (rng() < 0.5 ? -d * 0.28 : d * 0.28), rot: 0 };
+      addContainer('Comptoir', p3, [2.6, 1.0, 0.7], 'store', 'wood', 0xcabfa4);
+      break;
+    }
+    case 'gasstation': {
+      const p = alongWall(0.45);
+      addContainer('Présentoir', p, [1.8, 1.6, 0.5], 'gasstation', 'wood', 0xb0a488);
+      const p2 = alongWall(0.4);
+      addContainer('Comptoir', p2, [2.2, 1.0, 0.65], 'gasstation', 'wood', 0xcabfa4);
+      break;
+    }
+    case 'chapel': {
+      // bancs (deux rangées)
+      const along = room.z1 - room.z0 > room.x1 - room.x0;
+      const rows = Math.floor((along ? room.z1 - room.z0 : room.x1 - room.x0) / 2.2);
+      for (let r = 0; r < Math.max(2, rows - 1); r++) {
+        for (const side of [-1, 1]) {
+          const t = 0.18 + (r / Math.max(1, rows)) * 0.68;
+          const bx = along ? cx + side * (w * 0.22) : room.x0 + (room.x1 - room.x0) * t;
+          const bz = along ? room.z0 + (room.z1 - room.z0) * t : cz + side * (d * 0.22);
+          put('wood', box(0.5, 0.06, 1.6, [bx, floorY + 0.46, bz], [0, along ? 0 : Math.PI / 2, 0]), 0x7a6448);
+          put('wood', box(0.5, 0.7, 0.08, [bx, floorY + 0.8, bz + (along ? -0.78 : 0)], [0, along ? 0 : Math.PI / 2, 0]), 0x6e5a40);
+          put('wood', box(0.08, 0.45, 0.08, [bx - 0.2, floorY + 0.23, bz - 0.7]), 0x64513a);
+          put('wood', box(0.08, 0.45, 0.08, [bx + 0.2, floorY + 0.23, bz + 0.7]), 0x64513a);
+          collide(bx, floorY + 0.3, bz, 0.3, 0.3, 0.85);
+        }
+      }
+      // autel + tronc
+      const altar = along ? { x: cx, z: room.z1 - 4.6 } : { x: room.x1 - 4.6, z: cz };
+      put('stone', box(1.8, 0.95, 0.7, [altar.x, floorY + 0.48, altar.z]), 0x9a938a);
+      put('fabric', box(1.7, 0.08, 0.6, [altar.x, floorY + 0.99, altar.z]), 0x8a4a3c);
+      collide(altar.x, floorY + 0.48, altar.z, 0.9, 0.48, 0.35);
+      addContainer('Tronc à offrandes', { x: altar.x + 1.2, z: altar.z, rot: 0 }, [0.5, 0.7, 0.4], 'chapel', 'wood', 0x6e5a40);
+      break;
+    }
     default: { // séjour
       const p = alongWall(0.55);
       put('fabric', box(1.9, 0.75, 0.85, [p.x, floorY + 0.38, p.z], [0, p.rot, 0]), 0x6e6858);
@@ -232,8 +301,31 @@ function furnishRoom(room, roomType, rng, floorY, condition) {
       addContainer('Buffet', p2, [1.5, 0.85, 0.5], 'bedroom', 'wood', 0x9d8b6d);
       put('wood', box(1.0, 0.05, 0.6, [cx, floorY + 0.42, cz]), 0x8f7d5f);
       collide(cx, floorY + 0.24, cz, 0.5, 0.24, 0.3);
+      // bibliothèque occasionnelle
+      if (rng() < 0.5) {
+        const p4 = alongWall(0.32);
+        addContainer('Étagère', p4, [1.1, 1.9, 0.35], 'bedroom', 'wood', 0x8d7a5c);
+      }
       break;
     }
+  }
+
+  // Décor doux : moquette, rideaux, luminaire plafond
+  if (w > 2.6 && d > 2.6 && rng() < 0.6) {
+    const rugC = [0x7c4b42, 0x5c6152, 0x6e5a48, 0x54575e][rng.int(0, 3)];
+    const rw = Math.min(w * 0.5, 2.4), rd = Math.min(d * 0.5, 1.7);
+    put('rug', box(rw, 0.025, rd, [cx, floorY + 0.013, cz]), rugC);
+  }
+  if (rng() < 0.5) {
+    // rideaux de part et d'autre d'un mur quelconque
+    const cw = rng.range(0.5, 0.8);
+    put('fabric', box(cw, 1.7, 0.06, [cx - w * 0.28, floorY + 1.55, room.z0 + 0.16]), 0x8a8272);
+    put('fabric', box(cw, 1.7, 0.06, [cx + w * 0.28, floorY + 1.55, room.z0 + 0.16]), 0x8a8272);
+  }
+  if (rng() < 0.65) {
+    // luminaire plafond (câble + abat-jour)
+    put('dark', box(0.03, 0.5, 0.03, [cx, floorY + 2.5, cz]), 0x2a2a28);
+    put('dark', box(0.34, 0.2, 0.34, [cx, floorY + 2.2, cz]), 0x4a463c);
   }
 
   // Débris au sol : feuilles mortes, gravats
@@ -247,6 +339,46 @@ function furnishRoom(room, roomType, rng, floorY, condition) {
     }), 0x8e8880);
   }
   return out;
+}
+
+/** Porte articulée (ou montante pour les garages) + interactions + collisions. */
+function addDoor(bucket, opts) {
+  const {
+    id, group, doorX, doorZ, width, height, matKey, locked, jammed,
+    slide, label, outSign, colliders, interactables,
+  } = opts;
+  const doorGroup = new THREE.Group();
+
+  const doorW = width - 0.06, doorH = height - 0.05;
+  const parts = [box(doorW, doorH, 0.06, [doorW / 2, doorH / 2, 0])];
+  if (!slide) {
+    parts.push(box(doorW * 0.62, doorH * 0.34, 0.02, [doorW / 2, doorH * 0.66, 0.045]));
+    parts.push(box(doorW * 0.62, doorH * 0.34, 0.02, [doorW / 2, doorH * 0.28, 0.045]));
+    parts.push(box(0.07, 0.07, 0.1, [doorW - 0.16, doorH * 0.47, 0.03]));
+  } else {
+    for (let i = 0; i < 5; i++) {
+      parts.push(box(doorW - 0.04, doorH / 5 * 0.7, 0.02, [doorW / 2, doorH * (0.1 + i * 0.2), 0.05]));
+    }
+  }
+  const geom = mergeGeometries(parts.map((g) => colorize(g, slide ? 0x8f8a80 : 0x7d6a4e)));
+  const doorMesh = new THREE.Mesh(geom, materials()[matKey]);
+  doorMesh.castShadow = settings.preset.shadows;
+  doorGroup.add(doorMesh);
+  doorGroup.position.set(doorX - doorW / 2, 0, doorZ);
+  group.add(doorGroup);
+
+  interactables.push({
+    kind: 'door',
+    id: `${id}`,
+    label,
+    object: doorGroup,
+    slide: !!slide,
+    swing: outSign < 0 ? -1 : 1,
+    local: new THREE.Vector3(doorX, height / 2, doorZ + outSign * 0.3),
+    locked, jammed, open: false,
+    doorWidth: width, doorHeight: height,
+  });
+  colliders.push({ x: doorX, y: height / 2, z: doorZ, hx: width / 2, hy: height / 2, hz: 0.08, door: `${id}` });
 }
 
 /**
@@ -280,11 +412,37 @@ export function generateBuilding({ type, seed, x, y, z, yaw = 0, id }) {
   supports.push({ x: 0, z: 0, hx: (W + 0.5) / 2, hz: (D + 0.5) / 2, top: 0 });
   // pied de fondation enterré (masque le relief)
   bucket.add('concrete', box(W + 0.7, 3.2, D + 0.7, [0, -1.85, 0]), 0x6f6d66);
-
   // --- Ouvertures façade ---
-  const doorW = spec.garageDoor ? Math.min(3.4, W - 1.6) : 1.05;
-  const doorH = spec.garageDoor ? 2.5 : 2.1;
-  const doorX = spec.garageDoor ? 0 : rng.range(-halfW + 1.4, halfW - 1.4);
+  const doorW = spec.garageDoor ? Math.min(3.4, W - 1.6) : (type === 'church' ? 1.6 : 1.05);
+  const doorH = spec.garageDoor ? 2.5 : (type === 'church' ? 2.5 : 2.1);
+  const doorX = spec.garageDoor || type === 'church' ? 0 : rng.range(-halfW + 1.4, halfW - 1.4);
+  // porte de service éventuelle (façade arrière)
+  const hasBackDoor = !!spec.backDoor && D > 7;
+  const backDoorX = hasBackDoor ? rng.range(-halfW + 1.5, halfW - 1.5) : 0;
+
+  // plinthe : soubassement plus sombre autour des murs (découpé aux portes)
+  {
+    const PT = 0.34;                       // épaisseur plinthe
+    const seg = (x0, x1, z, axis) => {
+      if (x1 - x0 < 0.05) return;
+      const len = x1 - x0, cx = (x0 + x1) / 2;
+      if (axis === 'x') bucket.add('stone', box(len, 0.6, PT, [cx, 0.28, z]), 0x7b766d);
+      else bucket.add('stone', box(PT, 0.6, len, [z, 0.28, cx]), 0x7b766d);
+    };
+    const gaps = [{ x: doorX, w: doorW + 0.3 }];
+    if (hasBackDoor) gaps.push({ x: backDoorX, w: 1.28 });
+    const strip = (len, off, gap) => {      // segment le long de x, à z = off
+      const x0 = -len / 2;
+      if (!gap) { seg(x0, len / 2, off, 'x'); return; }
+      const g0 = gap.x - gap.w / 2, g1 = gap.x + gap.w / 2;
+      seg(x0, g0, off, 'x');
+      seg(g1, len / 2, off, 'x');
+    };
+    strip(W + PT, -halfD, { x: doorX, w: doorW + 0.3 });            // façade
+    strip(W + PT, halfD, hasBackDoor ? { x: backDoorX, w: 1.28 } : null);  // arrière
+    seg(-halfD - PT / 2, halfD + PT / 2, -halfW, 'z');              // pignons
+    seg(-halfD - PT / 2, halfD + PT / 2, halfW, 'z');
+  }
 
   const windowsFor = (len, count, exclude = null) => {
     const list = [];
@@ -292,33 +450,40 @@ export function generateBuilding({ type, seed, x, y, z, yaw = 0, id }) {
       const t = (i + 0.5) / count;
       const px = -len / 2 + len * t + (rng() - 0.5) * 0.5;
       if (exclude && Math.abs(px - exclude.x) < exclude.w / 2 + 0.9) continue;
-      list.push({ x: px, y: 1.05, w: rng.range(0.9, 1.3), h: rng.range(1.05, 1.35), broken: rng() < 0.35 + condition * 0.45 });
+      list.push({
+        x: px, y: type === 'church' ? 1.6 : 1.05,
+        w: type === 'church' ? rng.range(0.5, 0.8) : rng.range(0.9, 1.3),
+        h: type === 'church' ? rng.range(2.2, 3.0) : rng.range(1.05, 1.35),
+        broken: rng() < 0.35 + condition * 0.45,
+      });
     }
     return list;
   };
 
-  const wallTint = spec.wall === 'wood' ? 0xa08a6a : spec.wall === 'concrete' ? 0xbdbcb6 : 0xd8d2c4;
+  const wallTint = spec.wall === 'wood' ? 0xa08a6a : spec.wall === 'concrete' ? 0xbdbcb6 : spec.wall === 'brick' ? 0xbfae9c : 0xd8d2c4;
   const dirty = new THREE.Color(wallTint).multiplyScalar(1 - condition * 0.25).getHex();
 
   for (let f = 0; f < floors; f++) {
     const baseY = f * fh;
     const isGround = f === 0;
 
-    const facadeWindows = windowsFor(W, Math.max(1, Math.round(W / 3.2)), isGround ? { x: doorX, w: doorW } : null);
-    const backWindows = windowsFor(W, Math.max(1, Math.round(W / 3.6)));
+    const facadeWindows = windowsFor(W, Math.max(1, Math.round(W / (type === 'church' ? 2.6 : 3.2))), isGround ? { x: doorX, w: doorW } : null);
+    const backWindows = windowsFor(W, Math.max(1, Math.round(W / 3.6)),
+      isGround && hasBackDoor ? { x: backDoorX, w: 0.98 } : null);
     const leftWindows = windowsFor(D, Math.max(1, Math.round(D / 3.6)));
     const rightWindows = windowsFor(D, Math.max(1, Math.round(D / 3.6)));
 
     const faces = [
-      { len: W, axis: 'x', off: -halfD, rot: 0, wins: facadeWindows, door: isGround },
-      { len: W, axis: 'x', off: halfD, rot: Math.PI, wins: backWindows, door: false },
-      { len: D, axis: 'z', off: -halfW, rot: -Math.PI / 2, wins: leftWindows, door: false },
-      { len: D, axis: 'z', off: halfW, rot: Math.PI / 2, wins: rightWindows, door: false },
+      { len: W, axis: 'x', off: -halfD, rot: 0, wins: facadeWindows, door: isGround ? 'front' : null, nx: 0, nz: -1 },
+      { len: W, axis: 'x', off: halfD, rot: Math.PI, wins: backWindows, door: isGround && hasBackDoor ? 'back' : null, nx: 0, nz: 1 },
+      { len: D, axis: 'z', off: -halfW, rot: -Math.PI / 2, wins: leftWindows, door: false, nx: -1, nz: 0 },
+      { len: D, axis: 'z', off: halfW, rot: Math.PI / 2, wins: rightWindows, door: false, nx: 1, nz: 0 },
     ];
 
     for (const face of faces) {
       const openings = face.wins.map((wn) => ({ x: wn.x, y: wn.y, w: wn.w, h: wn.h }));
-      if (face.door) openings.push({ x: doorX, y: 0, w: doorW, h: doorH });
+      if (face.door === 'front') openings.push({ x: doorX, y: 0, w: doorW, h: doorH });
+      if (face.door === 'back') openings.push({ x: backDoorX, y: 0, w: 0.98, h: 2.05 });
       const parts = wallWithOpenings(face.len, fh, openings);
       for (const p of parts) {
         const gx = face.axis === 'x' ? p.x : face.off;
@@ -328,23 +493,39 @@ export function generateBuilding({ type, seed, x, y, z, yaw = 0, id }) {
         bucket.add(wallKey, box(sx, p.h, sz, [gx, baseY + p.y, gz]), dirty);
         colliders.push({ x: gx, y: baseY + p.y, z: gz, hx: sx / 2, hy: p.h / 2, hz: sz / 2 });
       }
-      // vitrages restants
+      // vitrages restants + meneaux + appuis
       for (const wn of face.wins) {
-        if (wn.broken) continue;
         const gx = face.axis === 'x' ? wn.x : face.off;
         const gz = face.axis === 'x' ? face.off : wn.x;
         const sx = face.axis === 'x' ? wn.w : 0.04;
         const sz = face.axis === 'x' ? 0.04 : wn.w;
-        bucket.add('glass', box(sx, wn.h, sz, [gx, baseY + wn.y + wn.h / 2, gz]), 0xffffff);
-      }
-      // encadrements
-      for (const wn of face.wins) {
-        const gx = face.axis === 'x' ? wn.x : face.off;
-        const gz = face.axis === 'x' ? face.off : wn.x;
-        const sx = face.axis === 'x' ? wn.w + 0.16 : WALL_T + 0.06;
-        const sz = face.axis === 'x' ? WALL_T + 0.06 : wn.w + 0.16;
-        bucket.add('wood', box(sx, 0.09, sz, [gx, baseY + wn.y - 0.05, gz]), 0x8d7b5e);
-        bucket.add('wood', box(sx, 0.09, sz, [gx, baseY + wn.y + wn.h + 0.05, gz]), 0x8d7b5e);
+        if (!wn.broken) {
+          bucket.add('glass', box(sx, wn.h, sz, [gx, baseY + wn.y + wn.h / 2, gz]), 0xffffff);
+          // meneaux (croisillon)
+          const mSx = face.axis === 'x' ? 0.04 : 0.06;
+          const mSz = face.axis === 'x' ? 0.06 : 0.04;
+          bucket.add('wood', box(mSx, wn.h, mSz, [gx, baseY + wn.y + wn.h / 2, gz]), 0xd9d2c2);
+          const hSx = face.axis === 'x' ? wn.w : 0.06;
+          const hSz = face.axis === 'x' ? 0.06 : wn.w;
+          bucket.add('wood', box(hSx, 0.04, hSz, [gx, baseY + wn.y + wn.h / 2, gz]), 0xd9d2c2);
+        } else if (isGround) {
+          // fenêtre brisée franchissable (rez-de-chaussée)
+          const inward = 1.15;
+          interactables.push({
+            kind: 'window',
+            id: `${id}:win_${f}_${interactables.length}`,
+            label: 'Fenêtre brisée',
+            local: new THREE.Vector3(gx + face.nx * 0.15, baseY + wn.y + wn.h * 0.35, gz + face.nz * 0.15),
+            inside: new THREE.Vector3(gx + face.nx * inward, baseY + 0.05, gz + face.nz * inward),
+            outside: new THREE.Vector3(gx - face.nx * 1.0, baseY - 0.05, gz - face.nz * 1.0),
+          });
+        }
+        // encadrement + appui saillant
+        const fSx = face.axis === 'x' ? wn.w + 0.16 : WALL_T + 0.1;
+        const fSz = face.axis === 'x' ? WALL_T + 0.1 : wn.w + 0.16;
+        bucket.add('wood', box(fSx, 0.09, fSz, [gx, baseY + wn.y - 0.05, gz]), 0x8d7b5e);
+        bucket.add('wood', box(fSx, 0.09, fSz, [gx, baseY + wn.y + wn.h + 0.05, gz]), 0x8d7b5e);
+        bucket.add('wood', box(fSx + 0.12, 0.07, fSz + 0.12, [gx, baseY + wn.y - 0.1, gz]), 0x7f6e52);
       }
     }
 
@@ -387,7 +568,6 @@ export function generateBuilding({ type, seed, x, y, z, yaw = 0, id }) {
     // Cloisons intérieures avec passages
     for (let i = 0; i < rooms.length; i++) {
       const r = rooms[i];
-      // mur sur les côtés intérieurs uniquement
       const edges = [
         { a: [r.x0, r.z0], b: [r.x1, r.z0], axis: 'x', off: r.z0 },
         { a: [r.x0, r.z1], b: [r.x1, r.z1], axis: 'x', off: r.z1 },
@@ -399,7 +579,6 @@ export function generateBuilding({ type, seed, x, y, z, yaw = 0, id }) {
         if (isOuter) continue;
         const len = e.axis === 'x' ? (r.x1 - r.x0) : (r.z1 - r.z0);
         const center = e.axis === 'x' ? (r.x0 + r.x1) / 2 : (r.z0 + r.z1) / 2;
-        // passage de porte
         const openings = [{ x: (rng() - 0.5) * Math.max(0, len - 2.2), y: 0, w: 0.95, h: 2.05 }];
         const parts = wallWithOpenings(len, fh, openings);
         for (const p of parts) {
@@ -427,67 +606,134 @@ export function generateBuilding({ type, seed, x, y, z, yaw = 0, id }) {
       bucket.add('wood', box(1.1, stepH + 0.04, stepD, [sx, yy + stepH / 2, zz]), 0x9c8a6a);
       supports.push({ x: sx, z: zz, hx: 0.55, hz: stepD / 2 + 0.02, top: yy + stepH });
     }
-    // trémie : on retire une partie du plancher haut en ajoutant simplement un support percé
     supports.push({ x: sx, z: sz0 + steps * stepD, hx: 0.6, hz: 0.5, top: fh });
   }
 
+  // --- Porche (some houses) ---
+  if (spec.porch && rng() < spec.porch) {
+    const pw = doorW + 1.6;
+    bucket.add('concrete', box(pw, 0.16, 1.6, [doorX, 0.08, -halfD - 0.85]), 0x9a968c);
+    supports.push({ x: doorX, z: -halfD - 0.85, hx: pw / 2, hz: 0.8, top: 0.16 });
+    bucket.add('wood', box(0.12, 2.3, 0.12, [doorX - pw / 2 + 0.1, 1.15, -halfD - 1.55]), 0x8a7a5e);
+    bucket.add('wood', box(0.12, 2.3, 0.12, [doorX + pw / 2 - 0.1, 1.15, -halfD - 1.55]), 0x8a7a5e);
+    bucket.add('roof', box(pw + 0.5, 0.12, 2.1, [doorX, 2.42, -halfD - 1.0], [0.18, 0, 0]), 0x8a6a52);
+  } else {
+    // marche de seuil : garantit l'entrée même en terrain très légèrement bosselé
+    bucket.add('stone', box(doorW + 0.5, 0.16, 0.5, [doorX, 0.08, -halfD - 0.3]), 0x8f8a80);
+    supports.push({ x: doorX, z: -halfD - 0.3, hx: (doorW + 0.5) / 2, hz: 0.25, top: 0.16 });
+  }
+
   // --- Toiture ---
-  const roofMat = spec.roof === 'tile' ? 'roof' : spec.roof === 'metal' ? 'metal' : 'wood';
   const topY = floors * fh;
-  const ridge = spec.tall ? 2.6 : 1.9;
-  const slopeLen = Math.sqrt((D / 2) * (D / 2) + ridge * ridge);
-  const angle = Math.atan2(ridge, D / 2);
-  const collapsed = condition > 0.82 && rng() < 0.5;
-  for (const side of [-1, 1]) {
-    if (collapsed && side === 1) continue;   // toit partiellement effondré
-    const g = box(W + 0.6, 0.16, slopeLen,
-      [0, topY + ridge / 2, side * (D / 4)],
-      [side * -angle, 0, 0]);
-    bucket.add(roofMat, g, spec.roof === 'metal' ? 0x9b8f80 : 0xa88b78);
-  }
-  // pignons
-  for (const side of [-1, 1]) {
-    const tri = new THREE.BufferGeometry();
-    const verts = new Float32Array([
-      -D / 2, 0, 0, D / 2, 0, 0, 0, ridge, 0,
-    ]);
-    tri.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-    tri.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3));
-    tri.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
-    transformGeometry(tri, { pos: [side * halfW, topY, 0], rot: [0, Math.PI / 2, 0] });
-    bucket.add(wallKey, tri, dirty);
-  }
-  // cheminée occasionnelle
-  if (spec.roof === 'tile' && rng() < 0.6) {
-    const chx = rng.range(-halfW * 0.5, halfW * 0.5);
-    bucket.add('stone', box(0.6, ridge + 1.2, 0.6, [chx, topY + (ridge + 1.2) / 2, 0]), 0x9a9088);
+  if (spec.roofStyle === 'flat') {
+    // toit plat avec acrotère
+    bucket.add('concrete', box(W + 0.3, 0.22, D + 0.3, [0, topY + 0.11, 0]), 0x8f8c85);
+    bucket.add('concrete', box(W + 0.5, 0.5, 0.14, [0, topY + 0.4, -halfD - 0.1]), 0x8a8780);
+    bucket.add('concrete', box(W + 0.5, 0.5, 0.14, [0, topY + 0.4, halfD + 0.1]), 0x8a8780);
+    bucket.add('concrete', box(0.14, 0.5, D + 0.5, [-halfW - 0.1, topY + 0.4, 0]), 0x8a8780);
+    bucket.add('concrete', box(0.14, 0.5, D + 0.5, [halfW + 0.1, topY + 0.4, 0]), 0x8a8780);
+    // climatiseur / évent rouillé
+    if (rng() < 0.6) bucket.add('metal', box(0.9, 0.6, 0.7, [rng.range(-halfW * 0.4, halfW * 0.4), topY + 0.5, rng.range(-halfD * 0.4, halfD * 0.4)]), 0x9a8f80);
+  } else {
+    const roofMat = spec.roof === 'tile' ? 'roof' : spec.roof === 'metal' ? 'metal' : 'wood';
+    const ridge = spec.tall ? (spec.tower ? 3.4 : 2.6) : 1.9;
+    const slopeLen = Math.sqrt((D / 2) * (D / 2) + ridge * ridge);
+    const angle = Math.atan2(ridge, D / 2);
+    const collapsed = condition > 0.82 && rng() < 0.5;
+    for (const side of [-1, 1]) {
+      if (collapsed && side === 1) continue;   // toit partiellement effondré
+      const g = box(W + 0.6, 0.16, slopeLen,
+        [0, topY + ridge / 2, side * (D / 4)],
+        [side * -angle, 0, 0]);
+      bucket.add(roofMat, g, spec.roof === 'metal' ? 0x9b8f80 : 0xa88b78);
+    }
+    // faîtage
+    if (!collapsed) {
+      bucket.add(roofMat, box(W + 0.7, 0.14, 0.3, [0, topY + ridge + 0.05, 0]), spec.roof === 'metal' ? 0x8a8074 : 0x93755f);
+    }
+    // pignons
+    for (const side of [-1, 1]) {
+      const tri = new THREE.BufferGeometry();
+      const verts = new Float32Array([
+        -D / 2, 0, 0, D / 2, 0, 0, 0, ridge, 0,
+      ]);
+      tri.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      tri.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3));
+      tri.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
+      transformGeometry(tri, { pos: [side * halfW, topY, 0], rot: [0, Math.PI / 2, 0] });
+      bucket.add(wallKey, tri, dirty);
+    }
+    // cheminée occasionnelle
+    if (spec.roof === 'tile' && rng() < 0.6) {
+      const chx = rng.range(-halfW * 0.5, halfW * 0.5);
+      bucket.add('stone', box(0.6, ridge + 1.2, 0.6, [chx, topY + (ridge + 1.2) / 2, 0]), 0x9a9088);
+      bucket.add('stone', box(0.74, 0.12, 0.74, [chx, topY + ridge + 1.22, 0]), 0x6d6660);
+    }
   }
 
-  // --- Porte principale articulée ---
-  const doorGroup = new THREE.Group();
-  const doorMatKey = spec.garageDoor ? 'metal' : 'wood';
-  const doorGeom = box(doorW - 0.06, doorH - 0.05, 0.06, [(doorW - 0.06) / 2, (doorH - 0.05) / 2, 0]);
-  colorize(doorGeom, spec.garageDoor ? 0x8f8a80 : 0x7d6a4e);
-  const doorMesh = new THREE.Mesh(doorGeom, materials()[doorMatKey]);
-  doorMesh.castShadow = settings.preset.shadows;
-  doorGroup.add(doorMesh);
-  doorGroup.position.set(doorX - (doorW - 0.06) / 2, 0, -halfD);
-  group.add(doorGroup);
+  // --- Clocher (église) : tour arrière pleine, autel devant ---
+  if (spec.tower) {
+    const tw = 3.8;
+    const th = fh + 7.5;
+    const tz = halfD - tw / 2 - 0.15;
+    bucket.add('stone', box(tw, th, tw, [0, th / 2, tz]), 0xb5aca0);
+    colliders.push({ x: 0, y: th / 2, z: tz, hx: tw / 2, hy: th / 2, hz: tw / 2 });
+    // ouvertures du beffroi
+    for (const s of [-1, 1]) {
+      bucket.add('dark', box(0.9, 1.2, 0.06, [s * 0.62, th - 1.3, tz]), 0x2e2a26);
+      bucket.add('dark', box(0.06, 1.2, 0.9, [0, th - 1.3, tz + s * 0.62]), 0x2e2a26);
+    }
+    // flèche + croix
+    const spire = new THREE.ConeGeometry(tw * 0.75, 3.6, 4);
+    transformGeometry(spire, { pos: [0, th + 1.8, tz], rot: [0, Math.PI / 4, 0] });
+    bucket.add('roof', spire, 0x8a7060);
+    bucket.add('metal', box(0.08, 1.0, 0.08, [0, th + 4.1, tz]), 0xd8d4c8);
+    bucket.add('metal', box(0.55, 0.08, 0.08, [0, th + 4.3, tz]), 0xd8d4c8);
+    bucket.add('metal', box(0.08, 0.08, 0.55, [0, th + 4.3, tz]), 0xd8d4c8);
+  }
 
-  const locked = rng() < 0.28;
-  const jammed = !locked && rng() < 0.18;
-  interactables.push({
-    kind: 'door',
+  // --- Auvent (commerce / station) ---
+  if (spec.awning) {
+    const aw = Math.min(W - 1, 6.5);
+    bucket.add('metal', box(0.09, 2.5, 0.09, [-aw / 2, 1.25, -halfD - 1.15]), 0x7f7a72);
+    bucket.add('metal', box(0.09, 2.5, 0.09, [aw / 2, 1.25, -halfD - 1.15]), 0x7f7a72);
+    bucket.add('metal', box(aw + 0.4, 0.1, 1.7, [0, 2.55, -halfD - 0.7], [0.12, 0, 0]), type === 'store' ? 0x7a4a3c : 0x707a72);
+    // devanture vitrée : la façade commerce garde une large baie déjà percée
+  }
+
+  // --- Porte principale ---
+  addDoor(bucket, {
     id: `${id}:door`,
-    label: `${spec.label}`,
-    object: doorGroup,
-    local: new THREE.Vector3(doorX, doorH / 2, -halfD - 0.2),
-    locked, jammed, open: false,
-    doorWidth: doorW, doorHeight: doorH,
+    group,
+    doorX, doorZ: -halfD,
+    width: doorW, height: doorH,
+    matKey: spec.garageDoor ? 'metal' : 'wood',
+    locked: rng() < 0.18,
+    jammed: rng() < 0.12,
+    slide: !!spec.garageDoor,
+    label: spec.label,
+    outSign: -1,
+    colliders, interactables,
   });
-  // Collision de la porte fermée (retirée quand elle s'ouvre)
-  const doorCollider = { x: doorX, y: doorH / 2, z: -halfD, hx: doorW / 2, hy: doorH / 2, hz: 0.08, door: `${id}:door` };
-  colliders.push(doorCollider);
+
+  // --- Porte de service (arrière) ---
+  if (hasBackDoor) {
+    addDoor(bucket, {
+      id: `${id}:backdoor`,
+      group,
+      doorX: backDoorX, doorZ: halfD,
+      width: 0.98, height: 2.05,
+      matKey: 'wood',
+      locked: rng() < 0.3,
+      jammed: rng() < 0.15,
+      slide: false,
+      label: 'Porte de service',
+      outSign: 1,
+      colliders, interactables,
+    });
+    bucket.add('stone', box(1.4, 0.16, 0.5, [backDoorX, 0.08, halfD + 0.3]), 0x8f8a80);
+    supports.push({ x: backDoorX, z: halfD + 0.3, hx: 0.7, hz: 0.25, top: 0.16 });
+  }
 
   // --- Végétation envahissante ---
   const ivyGeoms = [];
@@ -537,6 +783,10 @@ export function generateBuilding({ type, seed, x, y, z, yaw = 0, id }) {
   }));
   for (const it of interactables) {
     it.world = toWorld(it.local.x, it.local.y, it.local.z);
+    if (it.inside) {
+      it.worldInside = toWorld(it.inside.x, it.inside.y, it.inside.z);
+      it.worldOutside = toWorld(it.outside.x, it.outside.y, it.outside.z);
+    }
     it.buildingId = id;
   }
 

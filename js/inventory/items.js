@@ -82,6 +82,9 @@ export const ITEMS = {
   notebook: { name: 'Carnet', cat: CATEGORY.MISC, weight: 0.15, stack: 5, lore: true, desc: 'Des notes d\'un ancien habitant.', icon: '📓' },
   map_fragment: { name: 'Fragment de carte', cat: CATEGORY.MISC, weight: 0.02, stack: 6, reveal: 340, desc: 'Révèle une portion de la région.', icon: '🗺️' },
   radio: { name: 'Radio portable', cat: CATEGORY.MISC, weight: 0.9, stack: 1, cond: true, desc: 'Statique. Rien que de la statique.', icon: '📻' },
+  road_sign: { name: 'Panneau routier', cat: CATEGORY.MISC, weight: 2.2, stack: 3, lore: true, desc: '"Saint-Elme — 12 km". La peinture s\'écaille.', icon: '🪧' },
+  old_coin: { name: 'Pièce ancienne', cat: CATEGORY.MISC, weight: 0.01, stack: 24, desc: 'Une devise qui ne vaut plus rien. Presque jolie.', icon: '🪙' },
+  candle: { name: 'Bougie de pain', cat: CATEGORY.MISC, weight: 0.08, stack: 6, desc: 'Cire poussiéreuse, encore longue.', icon: '🕯️' },
 };
 
 export function itemDef(id) {
@@ -135,6 +138,26 @@ export const LOOT_TABLES = {
     { w: 10, id: 'duct_tape' }, { w: 8, id: 'wire' }, { w: 7, id: 'screwdriver' },
     { w: 6, id: 'map_fragment' }, { w: 6, id: 'empty_bottle' }, { w: 5, id: 'keys' },
     { w: 4, id: 'spark_plug' }, { w: 3, id: 'first_aid' }, { w: 18, id: null },
+  ],
+  store: [
+    { w: 14, id: 'canned_beans', min: 1, max: 3 }, { w: 10, id: 'canned_meat', min: 1, max: 2 },
+    { w: 10, id: 'dry_biscuits', min: 1, max: 3 }, { w: 8, id: 'water_bottle', min: 1, max: 2 },
+    { w: 7, id: 'battery_aa', min: 1, max: 4 }, { w: 6, id: 'cloth', min: 1, max: 4 },
+    { w: 5, id: 'painkillers' }, { w: 4, id: 'lighter' }, { w: 4, id: 'old_coin', min: 1, max: 3 },
+    { w: 3, id: 'map_fragment' }, { w: 3, id: 'radio' }, { w: 2, id: 'first_aid' },
+    { w: 12, id: null },
+  ],
+  gasstation: [
+    { w: 12, id: 'fuel_can' }, { w: 10, id: 'engine_oil', min: 1, max: 2 },
+    { w: 9, id: 'fan_belt' }, { w: 8, id: 'spark_plug' }, { w: 8, id: 'duct_tape' },
+    { w: 7, id: 'scrap_metal', min: 1, max: 3 }, { w: 6, id: 'wire', min: 1, max: 2 },
+    { w: 5, id: 'wrench' }, { w: 4, id: 'dry_biscuits', min: 1, max: 2 }, { w: 4, id: 'canned_beans' },
+    { w: 3, id: 'radiator_hose' }, { w: 2, id: 'car_battery' }, { w: 2, id: 'road_sign' }, { w: 14, id: null },
+  ],
+  chapel: [
+    { w: 10, id: 'candle', min: 1, max: 4 }, { w: 7, id: 'old_coin', min: 1, max: 2 },
+    { w: 6, id: 'bandage' }, { w: 5, id: 'notebook' }, { w: 4, id: 'photo' },
+    { w: 3, id: 'first_aid' }, { w: 2, id: 'keys' }, { w: 20, id: null },
   ],
   cave: [
     { w: 8, id: 'mushroom', min: 1, max: 4 }, { w: 6, id: 'scrap_metal' },

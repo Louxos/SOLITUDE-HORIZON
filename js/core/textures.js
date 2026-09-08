@@ -97,11 +97,16 @@ const BUILDERS = {
     const size = 256, c = canvas(size), ctx = c.getContext('2d');
     ctx.fillStyle = '#4a5b34'; ctx.fillRect(0, 0, size, size);
     paintNoise(ctx, size, [[48, 58, 34], [63, 76, 42], [86, 96, 55], [72, 84, 46], [55, 66, 38]], 7, 5);
-    // touffes sombres
+    // touffes sombres + brins clairs
     for (let i = 0; i < 900; i++) {
       const x = Math.random() * size, y = Math.random() * size;
       ctx.fillStyle = `rgba(${30 + Math.random() * 30},${40 + Math.random() * 35},${20 + Math.random() * 20},0.35)`;
       ctx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 3);
+    }
+    for (let i = 0; i < 420; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      ctx.fillStyle = `rgba(${110 + Math.random() * 50},${120 + Math.random() * 50},${60 + Math.random() * 30},0.22)`;
+      ctx.fillRect(x, y, 1, 1 + Math.random() * 2);
     }
     return toTexture(c, { repeat: 1 });
   },
@@ -145,6 +150,20 @@ const BUILDERS = {
       ctx.fillRect(x, 0, 1, size);
     }
     paintNoise(ctx, size, [[38, 30, 22], [82, 70, 54], [60, 50, 38]], 14, 4, 0.45);
+    // stries verticales profondes + mousse
+    for (let i = 0; i < 60; i++) {
+      const x = Math.random() * size;
+      const y0 = Math.random() * size;
+      const len = 20 + Math.random() * 90;
+      ctx.strokeStyle = `rgba(20,15,10,${0.25 + Math.random() * 0.35})`;
+      ctx.lineWidth = 0.6 + Math.random();
+      ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x + (Math.random() - 0.5) * 4, (y0 + len) % size); ctx.stroke();
+    }
+    for (let i = 0; i < 24; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      ctx.fillStyle = `rgba(${60 + Math.random() * 25},${85 + Math.random() * 30},${45 + Math.random() * 20},0.20)`;
+      ctx.beginPath(); ctx.ellipse(x, y, 2 + Math.random() * 6, 3 + Math.random() * 8, 0, 0, 7); ctx.fill();
+    }
     return toTexture(c);
   },
   wood: () => {
@@ -158,7 +177,48 @@ const BUILDERS = {
     // planches
     ctx.strokeStyle = 'rgba(30,22,14,0.55)'; ctx.lineWidth = 2;
     for (let y = 0; y <= size; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke(); }
+    // nœuds du bois
+    for (let i = 0; i < 10; i++) {
+      const x = Math.random() * size, y = Math.floor(Math.random() * 8) * 32 + 16;
+      ctx.strokeStyle = 'rgba(40,28,16,0.5)'; ctx.lineWidth = 1.2;
+      for (let r = 2; r < 7; r += 2) {
+        ctx.beginPath(); ctx.ellipse(x, y, r * 1.6, r, 0, 0, 7); ctx.stroke();
+      }
+    }
     paintNoise(ctx, size, [[50, 40, 28], [110, 92, 66]], 12, 4, 0.28);
+    return toTexture(c);
+  },
+  brick: () => {
+    const size = 256, c = canvas(size), ctx = c.getContext('2d');
+    ctx.fillStyle = '#8a8578'; ctx.fillRect(0, 0, size, size);   // mortier
+    const bh = 22, bw = 58;
+    let row = 0;
+    for (let y = 0; y < size; y += bh, row++) {
+      const off = (row % 2) * (bw / 2);
+      for (let x = -bw; x < size + bw; x += bw) {
+        const v = 0.72 + Math.random() * 0.45;
+        const r0 = Math.floor(128 * v), g0 = Math.floor(62 * v), b0 = Math.floor(48 * v);
+        ctx.fillStyle = `rgb(${r0},${g0},${b0})`;
+        ctx.fillRect(x + off + 2, y + 2, bw - 4, bh - 4);
+        // arête éclairée
+        ctx.fillStyle = `rgba(255,225,200,${0.05 + Math.random() * 0.07})`;
+        ctx.fillRect(x + off + 2, y + 2, bw - 4, 2);
+        // éclats
+        if (Math.random() < 0.4) {
+          ctx.fillStyle = `rgba(${r0 * 0.7},${g0 * 0.7},${b0 * 0.7},0.6)`;
+          ctx.fillRect(x + off + 2 + Math.random() * (bw - 12), y + 4 + Math.random() * (bh - 10), 3 + Math.random() * 5, 2 + Math.random() * 4);
+        }
+      }
+    }
+    // coulures d'humidité
+    for (let i = 0; i < 16; i++) {
+      const x = Math.random() * size;
+      const grd = ctx.createLinearGradient(x, 0, x, size);
+      grd.addColorStop(0, 'rgba(50,54,46,0.16)');
+      grd.addColorStop(1, 'rgba(50,54,46,0)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(x, Math.random() * size * 0.5, 4 + Math.random() * 10, size);
+    }
     return toTexture(c);
   },
   plaster: () => {
@@ -184,6 +244,14 @@ const BUILDERS = {
       ctx.lineWidth = Math.random() * 1.4;
       ctx.stroke();
     }
+    for (let i = 0; i < 26; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      const g = 150 + Math.random() * 60;
+      ctx.fillStyle = `rgba(${g},${g * 0.96},${g * 0.86},${0.14 + Math.random() * 0.2})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 3 + Math.random() * 10, 2 + Math.random() * 7, Math.random() * 3, 0, 7);
+      ctx.fill();
+    }
     return toTexture(c);
   },
   concrete: () => {
@@ -194,12 +262,31 @@ const BUILDERS = {
       ctx.fillStyle = `rgba(${70 + Math.random() * 60},${70 + Math.random() * 60},${68 + Math.random() * 55},0.35)`;
       ctx.fillRect(Math.random() * size, Math.random() * size, 1.5, 1.5);
     }
+    for (let i = 0; i < 12; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      ctx.fillStyle = `rgba(60,62,58,${0.05 + Math.random() * 0.08})`;
+      ctx.beginPath(); ctx.ellipse(x, y, 8 + Math.random() * 26, 6 + Math.random() * 18, Math.random() * 3, 0, 7); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(48,46,42,0.4)';
+    for (let i = 0; i < 10; i++) {
+      ctx.beginPath();
+      let x = Math.random() * size, y = Math.random() * size;
+      ctx.moveTo(x, y);
+      for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 40; y += Math.random() * 30; ctx.lineTo(x, y); }
+      ctx.lineWidth = 0.8; ctx.stroke();
+    }
     return toTexture(c);
   },
   asphalt: () => {
     const size = 256, c = canvas(size), ctx = c.getContext('2d');
     ctx.fillStyle = '#3b3a38'; ctx.fillRect(0, 0, size, size);
     paintNoise(ctx, size, [[44, 43, 41], [58, 57, 54], [70, 68, 64]], 12, 4, 0.8);
+    // nids-de-poule
+    for (let i = 0; i < 6; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      ctx.fillStyle = `rgba(${30 + Math.random() * 14},${29 + Math.random() * 14},${28 + Math.random() * 12},0.5)`;
+      ctx.beginPath(); ctx.ellipse(x, y, 6 + Math.random() * 16, 5 + Math.random() * 12, Math.random() * 3, 0, 7); ctx.fill();
+    }
     // fissures + herbe dans les fissures
     for (let i = 0; i < 22; i++) {
       ctx.strokeStyle = 'rgba(24,24,22,0.8)'; ctx.lineWidth = 1 + Math.random();
@@ -217,6 +304,11 @@ const BUILDERS = {
     const size = 128, c = canvas(size), ctx = c.getContext('2d');
     ctx.fillStyle = '#6f6a63'; ctx.fillRect(0, 0, size, size);
     paintNoise(ctx, size, [[70, 66, 62], [104, 70, 44], [128, 78, 44], [86, 82, 76]], 10, 5, 0.9);
+    for (let i = 0; i < 40; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      ctx.fillStyle = `rgba(${150 + Math.random() * 60},${80 + Math.random() * 40},${30 + Math.random() * 25},${0.3 + Math.random() * 0.4})`;
+      ctx.beginPath(); ctx.ellipse(x, y, 1 + Math.random() * 5, 1 + Math.random() * 4, Math.random() * 3, 0, 7); ctx.fill();
+    }
     return toTexture(c);
   },
   roof: () => {
@@ -228,16 +320,28 @@ const BUILDERS = {
         const v = 0.7 + Math.random() * 0.5;
         ctx.fillStyle = `rgb(${Math.floor(96 * v)},${Math.floor(62 * v)},${Math.floor(50 * v)})`;
         ctx.fillRect(x + off, y, 22, 14);
+        ctx.fillStyle = `rgba(255,222,192,${0.05 + Math.random() * 0.08})`;
+        ctx.fillRect(x + off, y, 22, 2);
+        if (Math.random() < 0.06) {
+          ctx.fillStyle = 'rgba(28,22,18,0.85)';
+          ctx.fillRect(x + off + 2, y + 2, 18, 10);
+        }
       }
     }
     paintNoise(ctx, size, [[40, 48, 34], [90, 60, 48]], 9, 4, 0.3);
+    for (let i = 0; i < 70; i++) {
+      const x = Math.random() * size;
+      const y = size - Math.random() * size * 0.5;
+      ctx.fillStyle = `rgba(${60 + Math.random() * 30},${90 + Math.random() * 40},${45 + Math.random() * 25},0.22)`;
+      ctx.beginPath(); ctx.ellipse(x, y, 2 + Math.random() * 5, 1.5 + Math.random() * 3, 0, 0, 7); ctx.fill();
+    }
     return toTexture(c);
   },
   foliage: () => {
     const size = 128, c = canvas(size), ctx = c.getContext('2d');
     ctx.clearRect(0, 0, size, size);
     // amas de feuilles avec canal alpha
-    for (let i = 0; i < 260; i++) {
+    for (let i = 0; i < 420; i++) {
       const x = size / 2 + (Math.random() - 0.5) * size * 0.95;
       const y = size / 2 + (Math.random() - 0.5) * size * 0.95;
       const d = Math.hypot(x - size / 2, y - size / 2) / (size / 2);
@@ -256,8 +360,8 @@ const BUILDERS = {
   grassBlade: () => {
     const size = 64, c = canvas(size), ctx = c.getContext('2d');
     ctx.clearRect(0, 0, size, size);
-    for (let i = 0; i < 14; i++) {
-      const x = 4 + Math.random() * (size - 8);
+    for (let i = 0; i < 22; i++) {
+      const x = 2 + Math.random() * (size - 4);
       const h = size * (0.45 + Math.random() * 0.5);
       const g = 70 + Math.random() * 60;
       ctx.strokeStyle = `rgba(${34 + Math.random() * 30},${g},${28 + Math.random() * 24},0.95)`;
@@ -274,7 +378,7 @@ const BUILDERS = {
   ivy: () => {
     const size = 128, c = canvas(size), ctx = c.getContext('2d');
     ctx.clearRect(0, 0, size, size);
-    for (let i = 0; i < 160; i++) {
+    for (let i = 0; i < 300; i++) {
       const x = Math.random() * size;
       const y = Math.random() * size;
       const fade = 1 - y / size;
@@ -298,6 +402,16 @@ const BUILDERS = {
       const v = 90 + Math.random() * 120;
       ctx.fillStyle = `rgba(${v},${v},${v},0.35)`;
       ctx.fillRect(Math.random() * size, Math.random() * size, 1.5, 1.5);
+    }
+    for (let i = 0; i < 260; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      const g = 70 + Math.random() * 50;
+      ctx.strokeStyle = `rgba(${g},${g * 0.9},${g * 0.7},0.4)`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8);
+      ctx.stroke();
     }
     return toTexture(c);
   },
