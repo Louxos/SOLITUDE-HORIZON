@@ -10,7 +10,7 @@ import { getTexture } from '../core/textures.js';
 import { clamp, smoothstep, lerp } from '../core/noise.js';
 import { buildChunkVegetation } from './vegetation.js';
 
-const LOD_SEGMENTS = [48, 24, 12, 6];
+const LOD_SEGMENTS = [64, 28, 14, 8];
 
 function lodForDistance(d) {
   if (d <= 1) return 0;

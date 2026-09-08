@@ -207,7 +207,7 @@ export function buildChunkVegetation(factory, terrain, cx, cz, lod) {
   const rng = makeRng(hashInt(terrain.seed, cx, cz, 77));
   const preset = settings.preset;
 
-  const spacing = lod === 0 ? 6.5 : 9.0;
+  const spacing = lod === 0 ? 5.4 : 7.5;
   const cols = Math.floor(size / spacing);
 
   const buckets = {};              // espèce -> [matrices, couleurs]
@@ -226,7 +226,7 @@ export function buildChunkVegetation(factory, terrain, cx, cz, lod) {
       const roll = rng();
 
       // --- Arbres ---
-      if (roll < density * 0.55 * preset.treeDensity) {
+      if (roll < density * 0.62 * preset.treeDensity) {
         let species;
         if (y > 145) species = rng() < 0.72 ? 'spruce' : 'pine';
         else if (biome === BIOME.DENSE_FOREST) species = rng() < 0.5 ? 'pine' : (rng() < 0.6 ? 'oak' : 'spruce');
@@ -252,7 +252,7 @@ export function buildChunkVegetation(factory, terrain, cx, cz, lod) {
       }
 
       // --- Sous-bois ---
-      if (roll < density * 0.55 + 0.20) {
+      if (roll < density * 0.62 + 0.26) {
         const which = rng();
         const mtx = new THREE.Matrix4().compose(
           new THREE.Vector3(x, y - 0.05, z),
@@ -323,7 +323,7 @@ export class GrassField {
   constructor(scene, terrain, factory) {
     this.scene = scene;
     this.terrain = terrain;
-    this.count = 9000;
+    this.count = 14000;
     this.center = new THREE.Vector3(1e9, 0, 1e9);
     const geom = buildCross(0.55, 0.42);
     const tex = getTexture('grassBlade');
@@ -352,8 +352,8 @@ export class GrassField {
     if (!settings.preset.grass || radius <= 0) { this.mesh.count = 0; return; }
     const rng = makeRng(hashInt(this.terrain.seed, Math.round(px / 8), Math.round(pz / 8), 5150));
     let n = 0;
-    const target = Math.min(this.count, Math.floor(radius * radius * 3.1));
-    for (let i = 0; i < target * 1.6 && n < target; i++) {
+    const target = Math.min(this.count, Math.floor(radius * radius * 4.2));
+    for (let i = 0; i < target * 1.8 && n < target; i++) {
       const a = rng() * Math.PI * 2;
       const r = Math.sqrt(rng()) * radius;
       const x = px + Math.cos(a) * r;
