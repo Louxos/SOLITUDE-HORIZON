@@ -4,6 +4,7 @@
  */
 
 import * as THREE from '../../vendor/three/three.module.min.js';
+import { WORLD } from '../core/config.js';
 import { bus } from '../core/events.js';
 import { Inventory } from '../inventory/inventory.js';
 import { itemDef } from '../inventory/items.js';
@@ -102,7 +103,7 @@ export class BaseSystem {
   /** Peut-on poser ici ? (sol praticable, pas dans l'eau) */
   canPlaceAt(pos) {
     const t = this.world.terrain;
-    if (t.height(pos.x, pos.z) < 9.8) return false;
+    if (t.height(pos.x, pos.z) < WORLD.waterLevel + 0.3) return false;
     if (t.slope(pos.x, pos.z) > 22) return false;
     for (const p of this.placed) {
       if (p.position.distanceTo(pos) < 1.0) return false;

@@ -2,7 +2,7 @@
  * sw.js — Service worker : mise en cache de toutes les ressources du jeu
  * pour un fonctionnement hors ligne après le premier chargement.
  */
-const CACHE = 'solitude-horizon-v3';
+const CACHE = 'solitude-horizon-v4';
 
 const ASSETS = [
   './',

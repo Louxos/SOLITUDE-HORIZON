@@ -39,9 +39,7 @@ const NAME_C = ['des Brumes', 'du Nord', "d'en Haut", 'perdu', 'oublié', 'des C
 const TOWN_NAMES = ['Saint-Elme', 'Aubry-sur-Lac', 'Valmont', 'Pierre-Fendue', 'Combe-Basse', 'Hautefeuille'];
 const VILLAGE_NAMES = ['Les Sauges', 'Combe-Verte', 'Rocher-Blanc', "Fond-d'Étang", 'Brame-Loup', 'Pré-Salé', 'Cinq-Chênes'];
 
-const usedNames = new Set();     // un lieu = un nom unique (lisible sur la carte)
-
-function poiName(rng, kind) {
+function poiName(rng, kind, usedNames = new Set()) {
   if (kind === 'town' || kind === 'village') {
     const pool = kind === 'town' ? TOWN_NAMES : VILLAGE_NAMES;
     const free = pool.filter((n) => !usedNames.has(n));
@@ -389,6 +387,7 @@ export class PoiManager {
     this.vehicles = new Map(); // id -> Vehicle
     this.discovered = new Set();
     this.settlements = [];
+    this.usedNames = new Set();   // un lieu = un nom unique, par instance (déterminisme)
     this.generateDefs();
   }
 
@@ -486,7 +485,7 @@ export class PoiManager {
         id: `${kind}_${Math.round(px)}_${Math.round(pz)}`,
         kind, x: px, y: plan.plazaY ?? h, z: pz,
         seed, ...plan,
-        name: poiName(makeRng(seed ^ 5), kind),
+        name: poiName(makeRng(seed ^ 5), kind, this.usedNames),
         biome: this.terrain.biomeAt(px, pz),
         discoverRadius: DISCOVER_RADIUS[kind] || 60,
       };
@@ -571,7 +570,7 @@ export class PoiManager {
       this.defs.set(id, {
         id, kind, x: spot.x, y: spot.y, z: spot.z,
         seed,
-        name: poiName(makeRng(hashInt(WORLD.seed, salt, 4321)), kind),
+        name: poiName(makeRng(hashInt(WORLD.seed, salt, 4321)), kind, this.usedNames),
         biome: this.terrain.biomeAt(spot.x, spot.z),
         ...planLayout(this.terrain, kind, spot.x, spot.z, seed),
       });

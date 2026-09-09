@@ -357,6 +357,13 @@ if (poiMgr) {
   check('un bourg est à portée de marche du spawn', nearest && nearest.dist < 700,
     `${nearest.d.name} (${nearest.d.kind}) à ${Math.round(nearest.dist)} m du spawn`);
 
+  // déterminisme : re-créer le monde (menu → nouvelle partie) doit donner les MÊMES noms
+  const mgr2 = new PoiManager(new THREE.Scene(), terrainPads, { state: { vehicles: {} }, terrain: terrainPads });
+  const names1 = poiMgr.settlements.map((s) => s.id + ':' + s.name).sort().join('|');
+  const names2 = mgr2.settlements.map((s) => s.id + ':' + s.name).sort().join('|');
+  check('les noms de bourgs sont stables entre deux parties', names1 === names2,
+    names1 === names2 ? 'identiques' : `différents : ${names1} vs ${names2}`);
+
   const town = towns[0];
   check('une ville contient plusieurs bâtiments', town.layout.length >= 5, `${town.layout.length} bâtiments autour de la place`);
 
