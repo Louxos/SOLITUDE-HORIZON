@@ -33,7 +33,7 @@ Cliquer sur la fenêtre pour capturer la souris (pointer lock). `Échap` la lib�
 ### Hors ligne
 
 Au premier chargement, un *service worker* (`sw.js`) met en cache la totalité du jeu
-(HTML, CSS, 34 modules JS, Three.js). Les visites suivantes fonctionnent **sans connexion**.
+(HTML, CSS, 38 modules JS, Three.js). Les visites suivantes fonctionnent **sans connexion**.
 Le jeu est aussi installable comme application (PWA) via `manifest.webmanifest`.
 Toutes les textures, géométries, sons et le monde sont générés à l'exécution : aucun asset binaire.
 
@@ -94,8 +94,13 @@ de soubassement. Les boîtes à gants des épaves se fouillent.
 **Eau.** Lacs et rivières : on patauge, puis on nage au-delà de 1,25 m ; l'endurance descend,
 la température corporelle aussi.
 
-**Faune.** Cerfs, sangliers, renards, lapins, oiseaux, poissons, loups rares. États AI
+**Faune.** Cerfs, sangliers, renards, lapins, oiseaux, loups rares. États AI
 (broute / vigilant / fuite / approche), détection par distance et vent, danger évitable.
+
+**Pêche.** Des bancs de poissons circulent sous la surface des lacs (silhouettes et
+remous visibles). Avec une canne (appentis, garages), visez l'eau profonde : « Lancer la
+ligne », attendez la touche — *Ça mord !* — et ferrez dans la fenêtre de 1,7 s. Poisson
+brut à griller sur un feu (le cru fait courir un risque).
 
 **Ciel & météo.** Cycle jour/nuit complet (`TIME_SCALE = 60`, un jour ≈ 24 min) avec ciel en
 shader (Rayleigh/Mie), lune, étoiles, **nuits réellement sombres**. Météo enchaînée par chaînes de
@@ -104,7 +109,17 @@ brouillard, vent — avec inertie, humidité et températures cohérentes.
 
 **Audio.** 100 % procédural (WebAudio) : pas, dont le timbre change selon la surface (herbe, terre,
 gravier, bois, roche, eau), ambiances de biome, oiseaux à l'aube, pluie filtrée, tonnerre,
-moteur à régime variable, nappes musicales rares. Le silence est un parti pris.
+moteur à régime variable, nappes musicales rares, **réverbération des pièces** (réponse
+impulsionnelle générée) quand on entre dans un bâtiment. Le silence est un parti pris.
+
+**Atmosphère.** **Brume du matin** qui dort sur les lacs entre 5 h et 10 h puis se dissipe,
+poussière en suspension dans les faisceaux des bâtiments, **bloom subtil + color grading +
+vignette + grain** sur le préréglage Élevé (chaîne de post-traitement maison, sans addon,
+coupée automatiquement si le framerate chute).
+
+**Récits trouvés.** Carnets, journaux intimes, registres, photographies et affiches
+s'ouvrent en pleine page sur papier jauni : 20 fragments du quotidien interrompu, stables
+pour un même objet — la narration vient des lieux, jamais de PNJ.
 
 ---
 
@@ -163,7 +178,7 @@ Cible : **1080p / 60 FPS sur PC milieu de gamme**.
 
 ## 7. Architecture
 
-Aucun fichier monolithique : 34 modules ES, ~9 200 lignes, zéro dépendance npm
+Aucun fichier monolithique : 38 modules ES, ~9 900 lignes, zéro dépendance npm
 (Three.js r180 est *vendored* dans `vendor/`).
 
 ```
@@ -172,9 +187,9 @@ css/         main.css · ui.css
 vendor/three/ three.module.min.js (r180, MIT)
 js/
   main.js            amorçage, écran de chargement, boucle, service worker
-  core/              config, rng, noise, events (bus), input, settings, engine, textures (22 gabarits procéduraux, dont brique), geometry
+  core/              config, rng, noise, events (bus), input, settings, engine, postfx (bloom/grading), textures (22 gabarits procéduraux, dont brique), geometry
   world/             terrain, roads, chunks, vegetation, water, buildings, vehicles, poi, world
-  environment/       sky (shader), weather
+  environment/       sky (shader), weather, ambience (brume, poussière)
   player/            player (déplacement, collisions, nage, escalade, head bob)
   survival/          stats
   inventory/         items (base de données), inventory
@@ -182,7 +197,7 @@ js/
   interaction/       interaction (raycast + prompts contextuels)
   base/              base (construction, coffres, lit, feu)
   save/              save (LocalStorage + IndexedDB, autosave, export/import)
-  ui/                hud, panels, map, menu
+  ui/                hud, panels, map, menu, lore (fragments trouvés)
 tools/               headless-test.mjs · headless-shim.mjs
 ```
 
@@ -197,7 +212,7 @@ Un harnais de test hors navigateur exécute les vrais modules du jeu dans Node (
 simulés par `tools/headless-shim.mjs`) :
 
 ```bash
-node tools/headless-test.mjs      # 78 assertions, ~3 s, code de sortie 1 si échec
+node tools/headless-test.mjs      # 94 assertions, ~3 s, code de sortie 1 si échec
 ```
 
 Il couvre : déterminisme du terrain, relief et biomes, routes et déclivité, chunks et LOD,
@@ -206,8 +221,10 @@ la chaîne complète diagnostic → réparation → conduite → sérialisation 
 sur plusieurs minutes simulées, la physique du joueur (chute et dégâts, murs, planchers, nage),
 la météo sur 40 minutes simulées, la sauvegarde/rechargement et la base d'objets — plus la
 **génération des villes/villages** (aplatissement de la place, portes, butin, clocher, boîtes à
-gants) et le test critique : *un joueur qui marche réellement jusqu'à une porte ouverte et entre
-dans la maison* (vitesse, collisions et seuil vérifiés frame par frame).
+gants), le test critique : *un joueur qui marche réellement jusqu'à une porte ouverte et entre
+dans la maison* (vitesse, collisions et seuil vérifiés frame par frame), et les nouveaux
+systèmes : **mini-jeu de pêche** (lancer, touche, ferrage), bancs de poissons (apparition,
+densité), **fragments de récits** (stables, photos ≠ carnets) et **fenêtre de brume** du matin.
 
 Vérification des imports et de la syntaxe de l'ensemble du graphe de modules :
 

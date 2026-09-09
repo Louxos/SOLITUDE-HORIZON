@@ -460,6 +460,69 @@ section('Persistance de l\'état des portes');
   check('les maisons familiales ont une porte de service', !!back, back ? back.label : 'absente');
 }
 
+
+// --- 14. Pêche, lore et ambiance --------------------------------------------
+section('Pêche, lore et ambiance');
+const { FishingGame, FishShoals } = await import('../js/world/fish.js');
+const { loreFor, LORE } = await import('../js/ui/lore.js');
+const { AmbienceFX } = await import('../js/environment/ambience.js');
+
+check('matériel de pêche défini', !!ITEMS.fishing_rod && !!ITEMS.raw_fish && !!ITEMS.cooked_fish,
+  `${['fishing_rod', 'raw_fish', 'cooked_fish'].filter((k) => ITEMS[k]).join(', ')}`);
+
+// mini-jeu : lancer → morsure → ferrage réussi
+{
+  const mkFishRng = (ret) => { const f = () => ret; f.range = (a) => a; return f; };
+  const g = new FishingGame(mkFishRng(0.5));
+  g.cast(0.6);
+  check('la ligne se lance', g.active && g.phase === 'wait');
+  let ev = null;
+  for (let i = 0; i < 200 && !ev && g.phase !== 'bite'; i++) ev = g.update(1 / 10);
+  check('ça mord près d\'un banc', g.phase === 'bite', `phase ${g.phase}`);
+  const res = g.reel();
+  check('le ferrage remonte un poisson (ou le perd)', res === 'caught' || res === 'missed', res);
+  check('la partie se termine', !g.active);
+  // eau vide : on peut ne rien prendre du tout
+  const g2 = new FishingGame(mkFishRng(0.9));   // jamais de chance
+  g2.cast(0);
+  let ev2 = null;
+  for (let i = 0; i < 300 && !ev2; i++) ev2 = g2.update(1 / 10);
+  check('eau vide : souvent rien', ev2 === 'nothing' || g2.phase === 'bite', `event ${ev2}`);
+}
+
+// bancs visuels : apparition près d'un lac + densité requêtable
+{
+  let lakePos = null;
+  for (let i = 0; i < 30000 && !lakePos; i++) {
+    const x = ((i * 313) % 4800) - 2400, z = ((i * 787) % 4800) - 2400;
+    if (terrainA.height(x, z) < WORLD.waterLevel - 2.5) lakePos = { x, z };
+  }
+  const shoals = new FishShoals(new THREE.Scene(), terrainA, null);
+  for (let i = 0; i < 400 && shoals.shoals.length < 3; i++) shoals.update(0.1, lakePos, i);
+  check('des bancs de poissons apparaissent près des lacs', shoals.shoals.length >= 3, `${shoals.shoals.length} bancs`);
+  const s0 = shoals.shoals[0];
+  check('la densité de poissons est requêtable', shoals.query(s0.x, s0.z) > 0.5,
+    `densité au centre du banc ${shoals.query(s0.x, s0.z).toFixed(2)}`);
+  check('pas de poissons loin des bancs', shoals.query(s0.x + 500, s0.z + 500) === 0);
+}
+
+// lore : fragments lisibles, stables
+{
+  const e1 = loreFor({ id: 'notebook' }, 0, WORLD.seed);
+  const e2 = loreFor({ id: 'notebook' }, 0, WORLD.seed);
+  check('les carnets contiennent des fragments', LORE.length >= 18, `${LORE.length} fragments`);
+  check('un même carnet montre toujours le même texte', e1.title === e2.title && e1.body === e2.body);
+  const ph = loreFor({ id: 'photo' }, 0, WORLD.seed);
+  check('les photos montrent des photographies', /Photographie/.test(ph.title), ph.title);
+}
+
+// ambiance : fenêtre de brume du matin
+{
+  check('brume pleine à l\'aube', AmbienceFX.mistWindow(7) === 1, `à 7 h : ${AmbienceFX.mistWindow(7)}`);
+  check('pas de brume à midi', AmbienceFX.mistWindow(12.5) === 0, `à 12 h 30 : ${AmbienceFX.mistWindow(12.5)}`);
+  check('brume naissante à 5 h', AmbienceFX.mistWindow(5) > 0 && AmbienceFX.mistWindow(5) < 1, `à 5 h : ${AmbienceFX.mistWindow(5).toFixed(2)}`);
+}
+
 // ----------------------------------------------------------------- rapport
 console.log('\n══════════════════════════════════════════════════════════════');
 console.log('  SOLITUDE HORIZON — tests système (headless)');

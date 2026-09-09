@@ -13,6 +13,8 @@ import { Terrain, findSpawnPoint } from './terrain.js';
 import { ChunkManager } from './chunks.js';
 import { VegetationFactory, GrassField } from './vegetation.js';
 import { Water } from './water.js';
+import { FishShoals, FishingGame } from './fish.js';
+import { AmbienceFX } from '../environment/ambience.js';
 import { PoiManager } from './poi.js';
 import { Sky } from '../environment/sky.js';
 import { Weather } from '../environment/weather.js';
@@ -37,6 +39,9 @@ export class World {
     this.chunks = new ChunkManager(this.scene, this.terrain, this.vegFactory);
     this.grass = new GrassField(this.scene, this.terrain, this.vegFactory);
     this.water = new Water(this.scene, this.terrain);
+    this.fishShoals = new FishShoals(this.scene, this.terrain, this.water);
+    this.fishing = new FishingGame(makeRng(WORLD.seed ^ 0x91a7));
+    this.ambience = new AmbienceFX(this.scene, this.terrain, this.water);
     this.sky = new Sky(this.scene, engine);
     this.weather = new Weather(this.scene, this.terrain, WORLD.seed + 17);
     this.animals = new AnimalManager(this.scene, this.terrain, WORLD.seed);
@@ -169,6 +174,47 @@ export class World {
   }
 
   // ---------------------------------------------------------------- véhicules
+  // ---------------------------------------------------------------- pêche
+  /** Lance la ligne au point visé (profondeur > ~1 m requise). */
+  startFishing(x, z) {
+    if (this.fishing.active) return;
+    if (!this.player.inventory.has('fishing_rod')) {
+      bus.emit('notify', { text: 'Il vous faut une canne à pêche.', kind: 'warn' });
+      return;
+    }
+    if (this.player.stats.stamina < 8) {
+      bus.emit('notify', { text: 'Trop épuisé pour lancer la ligne.', kind: 'warn' });
+      return;
+    }
+    const depth = this.water.depthAt(x, z);
+    if (depth < 0.9) {
+      bus.emit('notify', { text: "L'eau est trop peu profonde ici.", kind: 'warn' });
+      return;
+    }
+    this.player.stats.stamina -= 6;
+    const density = this.fishShoals.query(x, z);
+    this.fishingPoint = { x, z };
+    this.fishing.cast(density);
+    this.fishShoals.ripple(x, z, 0.5);
+    bus.emit('notify', { text: 'Ligne lancée. Vous attendez…', kind: 'muted' });
+    bus.emit('audio:sfx', { name: 'splash' });
+  }
+
+  /** Ferre la ligne (ou la relève). */
+  reelFishing() {
+    if (!this.fishing.active) return;
+    const res = this.fishing.reel();
+    if (res === 'caught') {
+      this.player.inventory.add('raw_fish', 1);
+      bus.emit('notify', { text: 'Poisson attrapé !', kind: 'good' });
+      bus.emit('audio:sfx', { name: 'splash' });
+    } else if (res === 'missed') {
+      bus.emit('notify', { text: 'Il s\'est décroché…', kind: 'warn' });
+    } else if (res === 'early') {
+      bus.emit('notify', { text: 'Vous relevez la ligne.', kind: 'muted' });
+    }
+  }
+
   useVehicle(vehicle) {
     if (this.player.vehicle) return;
     if (!vehicle.repaired) {
@@ -297,6 +343,22 @@ export class World {
     this.chunks.setWetness(this.weather.wetness);
     this.water.update(dt, this.camera, this.weather.rainIntensity);
     this.vegFactory.updateWind(this.engine.elapsed, this.weather.windStrength);
+
+    // Poissons & pêche
+    this.fishShoals.update(dt, pos, this.engine.elapsed);
+    const wasBiting = this.fishing.phase === 'bite';
+    const fishEvent = this.fishing.update(dt);
+    if (this.fishing.phase === 'bite' && !wasBiting) {
+      bus.emit('notify', { text: 'Ça mord !', kind: 'good' });
+      bus.emit('audio:sfx', { name: 'splash' });
+      const fp = this.fishingPoint || pos;
+      this.fishShoals.ripple(fp.x, fp.z, 1);
+    }
+    if (fishEvent === 'nothing') bus.emit('notify', { text: 'Rien ne mord…', kind: 'muted' });
+    else if (fishEvent === 'late') bus.emit('notify', { text: 'Trop tard — le poisson est reparti.', kind: 'warn' });
+
+    // Brume du matin sur les lacs, poussière dans les bâtiments
+    this.ambience.update(dt, this.camera, this.sky.hour, this.weather.rainIntensity, player.sheltered, this.sky.daylight);
     this.base.update(dt);
 
     // Joueur

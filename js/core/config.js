@@ -56,6 +56,8 @@ export const QUALITY_PRESETS = {
     rainParticles: 6000,
     anisotropy: 8,
     animals: 22,
+  
+    postfx: true,
   },
 };
 

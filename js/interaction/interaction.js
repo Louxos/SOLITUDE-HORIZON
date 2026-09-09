@@ -113,7 +113,13 @@ export class InteractionSystem {
       case 'bed': return { label: 'Lit', action: 'Dormir', key: 'E' };
       case 'firepit': return { label: 'Foyer', action: this.world.base.fireLit(target.id) ? 'Se réchauffer' : 'Allumer un feu', key: 'E' };
       case 'forage': return { label: target.label, action: 'Récolter', key: 'E' };
-      case 'water': return { label: 'Eau', action: 'Boire / Remplir', key: 'E' };
+      case 'water': {
+        const f = this.world.fishing;
+        if (f && f.phase === 'bite') return { label: 'Ça mord !', action: 'Ferrer', key: 'E' };
+        if (f && f.active) return { label: 'Ligne à l\'eau', action: 'Relever la ligne', key: 'E' };
+        const hasRod = this.player.inventory.has('fishing_rod');
+        return { label: 'Eau', action: hasRod ? 'Pêcher / Boire' : 'Boire / Remplir', key: 'E' };
+      }
       case 'carcass': return { label: target.label, action: 'Dépecer', key: 'E' };
       case 'window': return { label: 'Fenêtre brisée', action: 'Franchir', key: 'E' };
       case 'placed': {
@@ -149,7 +155,12 @@ export class InteractionSystem {
       case 'bed': return bus.emit('ui:sleep', { position: target.world });
       case 'firepit': return world.base.toggleWorldFire(target, player);
       case 'forage': return this.forage(target.forage);
-      case 'water': return bus.emit('ui:water');
+      case 'water': {
+        const f = this.world.fishing;
+        if (f && f.active) { this.world.reelFishing(); return; }
+        bus.emit('ui:water', { x: target.position.x, z: target.position.z });
+        return;
+      }
       case 'carcass': return world.butcher(target.carcass);
       case 'window': return this.climbThroughWindow(target);
       case 'placed': return world.base.usePlaced(target.placed);

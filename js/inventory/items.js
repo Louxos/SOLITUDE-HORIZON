@@ -26,6 +26,8 @@ export const ITEMS = {
   berries: { name: 'Baies sauvages', cat: CATEGORY.FOOD, weight: 0.12, stack: 12, food: 8, thirst: 4, desc: 'Cueillies dans les fourrés.', icon: '🫐' },
   mushroom: { name: 'Champignon', cat: CATEGORY.FOOD, weight: 0.09, stack: 12, food: 6, thirst: 1, risk: 0.18, desc: 'Comestible… probablement.', icon: '🍄' },
   cooked_meat: { name: 'Viande cuite', cat: CATEGORY.FOOD, weight: 0.35, stack: 5, food: 38, thirst: -3, desc: 'Cuite sur un feu.', icon: '🍖' },
+  raw_fish: { name: 'Poisson brut', cat: CATEGORY.FOOD, weight: 0.3, stack: 4, food: 10, thirst: 2, risk: 0.32, desc: 'Frais… si vous le mangez cru, c\'est à vos risques et périls.', icon: '🐟' },
+  cooked_fish: { name: 'Poisson grillé', cat: CATEGORY.FOOD, weight: 0.26, stack: 4, food: 34, thirst: -1, desc: 'La chair se détache en flocons.', icon: '🍣' },
   raw_meat: { name: 'Viande crue', cat: CATEGORY.FOOD, weight: 0.5, stack: 5, food: 12, thirst: 0, risk: 0.45, desc: 'À cuire avant consommation.', icon: '🥩' },
 
   // --- Boisson ---
@@ -36,6 +38,7 @@ export const ITEMS = {
 
   // --- Outils ---
   flashlight: { name: 'Lampe torche', cat: CATEGORY.TOOL, weight: 0.4, stack: 1, cond: true, tool: 'light', desc: 'Fonctionne avec des piles.', icon: '🔦' },
+  fishing_rod: { name: 'Canne à pêche', cat: CATEGORY.TOOL, weight: 0.85, stack: 1, cond: true, desc: 'Moulinet grippé mais ligne solide. Les poissons ne se méfient plus de personne.', icon: '🎣' },
   battery_aa: { name: 'Piles', cat: CATEGORY.TOOL, weight: 0.05, stack: 12, desc: 'Recharge la lampe torche.', icon: '🔋' },
   screwdriver: { name: 'Tournevis', cat: CATEGORY.TOOL, weight: 0.18, stack: 1, cond: true, tool: 'screwdriver', desc: 'Indispensable pour l\'électricité.', icon: '🪛' },
   hammer: { name: 'Marteau', cat: CATEGORY.TOOL, weight: 0.65, stack: 1, cond: true, tool: 'hammer', damage: 22, desc: 'Sert aussi à se défendre.', icon: '🔨' },
@@ -120,7 +123,7 @@ export const LOOT_TABLES = {
     { w: 7, id: 'wire', min: 1, max: 2 }, { w: 6, id: 'duct_tape' },
     { w: 5, id: 'engine_oil' }, { w: 5, id: 'fan_belt' }, { w: 4, id: 'spark_plug' },
     { w: 3, id: 'car_battery' }, { w: 3, id: 'fuel_can' }, { w: 3, id: 'tire' },
-    { w: 3, id: 'radiator_hose' }, { w: 2, id: 'multitool' }, { w: 12, id: null },
+    { w: 3, id: 'radiator_hose' }, { w: 2, id: 'multitool' }, { w: 2, id: 'fishing_rod' }, { w: 12, id: null },
   ],
   workshop: [
     { w: 12, id: 'nails', min: 5, max: 30 }, { w: 10, id: 'wood_plank', min: 1, max: 4 },
@@ -132,7 +135,8 @@ export const LOOT_TABLES = {
   shed: [
     { w: 10, id: 'wood_plank', min: 1, max: 3 }, { w: 9, id: 'nails', min: 4, max: 20 },
     { w: 8, id: 'rope' }, { w: 7, id: 'scrap_metal' }, { w: 6, id: 'campfire_kit' },
-    { w: 5, id: 'fuel_can' }, { w: 4, id: 'bed_roll' }, { w: 16, id: null },
+    { w: 5, id: 'fuel_can' }, { w: 4, id: 'bed_roll' }, { w: 4, id: 'fishing_rod' },
+    { w: 14, id: null },
   ],
   vehicle: [
     { w: 10, id: 'duct_tape' }, { w: 8, id: 'wire' }, { w: 7, id: 'screwdriver' },
