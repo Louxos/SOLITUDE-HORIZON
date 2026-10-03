@@ -33,7 +33,7 @@ Cliquer sur la fenêtre pour capturer la souris (pointer lock). `Échap` la lib�
 ### Hors ligne
 
 Au premier chargement, un *service worker* (`sw.js`) met en cache la totalité du jeu
-(HTML, CSS, 38 modules JS, Three.js). Les visites suivantes fonctionnent **sans connexion**.
+(HTML, CSS, 39 modules JS, Three.js, 8 textures photo, icônes). Les visites suivantes fonctionnent **sans connexion**.
 Le jeu est aussi installable comme application (PWA) via `manifest.webmanifest`.
 Toutes les textures, géométries, sons et le monde sont générés à l'exécution : aucun asset binaire.
 
@@ -117,6 +117,20 @@ poussière en suspension dans les faisceaux des bâtiments, **bloom subtil + col
 vignette + grain** sur le préréglage Élevé (chaîne de post-traitement maison, sans addon,
 coupée automatiquement si le framerate chute).
 
+**Rendu (pack visuel).** Huit matériaux photoréalistes générés par IA puis rendus *tileables*
+par code (mosaïque décalée + fondu) : herbe, terre, asphalte, brique, plâtre, planches, tuiles,
+tôle rouillée — chacun avec sa **normale dérivée** (luminance → sobel), le tout en secours
+remplaçable par le procédural si les fichiers manquent. **Normales** aussi sur les troncs et
+murs. **Nuages dérivants** en billboards teintés au crépuscule, **étoiles filantes** les nuits
+dégagées, **scintillement solaire** sur l'eau (spéculaire serré animé), **fleurs sauvages**
+mêlées à l'herbe des prairies.
+
+**Modèles 3D importés (Meshy AI).** Menu pause → « Importer un modèle 3D… » : entrez votre
+clé [meshy.ai](https://meshy.ai) (gardée uniquement dans votre navigateur), décrivez un objet —
+la génération *text-to-3D* tourne, le GLB arrive et **se pose devant vous**, avec collision et
+persistance (fichier en IndexedDB, position dans la sauvegarde). L'import de fichier `.glb`
+téléchargé manuellement fonctionne sans clé. Un chargeur glTF est vendorisé (`vendor/three/loaders/`).
+
 **Récits trouvés.** Carnets, journaux intimes, registres, photographies et affiches
 s'ouvrent en pleine page sur papier jauni : 20 fragments du quotidien interrompu, stables
 pour un même objet — la narration vient des lieux, jamais de PNJ.
@@ -178,7 +192,7 @@ Cible : **1080p / 60 FPS sur PC milieu de gamme**.
 
 ## 7. Architecture
 
-Aucun fichier monolithique : 38 modules ES, ~9 900 lignes, zéro dépendance npm
+Aucun fichier monolithique : 39 modules ES, ~10 500 lignes, zéro dépendance npm
 (Three.js r180 est *vendored* dans `vendor/`).
 
 ```
@@ -212,7 +226,7 @@ Un harnais de test hors navigateur exécute les vrais modules du jeu dans Node (
 simulés par `tools/headless-shim.mjs`) :
 
 ```bash
-node tools/headless-test.mjs      # 94 assertions, ~3 s, code de sortie 1 si échec
+node tools/headless-test.mjs      # 99 assertions, ~3 s, code de sortie 1 si échec
 ```
 
 Il couvre : déterminisme du terrain, relief et biomes, routes et déclivité, chunks et LOD,
@@ -224,7 +238,8 @@ la météo sur 40 minutes simulées, la sauvegarde/rechargement et la base d'obj
 gants), le test critique : *un joueur qui marche réellement jusqu'à une porte ouverte et entre
 dans la maison* (vitesse, collisions et seuil vérifiés frame par frame), et les nouveaux
 systèmes : **mini-jeu de pêche** (lancer, touche, ferrage), bancs de poissons (apparition,
-densité), **fragments de récits** (stables, photos ≠ carnets) et **fenêtre de brume** du matin.
+densité), **fragments de récits** (stables, photos ≠ carnets) et **fenêtre de brume** du matin,
+plus la présence du **pack visuel** (photos, icônes, og-image, GLTFLoader vendorisé).
 
 Vérification des imports et de la syntaxe de l'ensemble du graphe de modules :
 

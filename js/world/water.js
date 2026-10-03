@@ -36,6 +36,9 @@ export class Water {
       uTime: { value: 0 },
       uRain: { value: 0 },
       uCam: { value: new THREE.Vector3() },
+      uSunDir: { value: new THREE.Vector3(0.4, 0.7, 0.3).normalize() },
+      uSunCol: { value: new THREE.Color(1, 0.95, 0.85) },
+      uDaylight: { value: 1 },
     };
 
     this.material.onBeforeCompile = (shader) => {
@@ -57,6 +60,9 @@ export class Water {
           uniform float uTime;
           uniform float uRain;
           uniform vec3 uCamPos;
+          uniform vec3 uSunDir;
+          uniform vec3 uSunCol;
+          uniform float uDaylight;
           varying vec3 vWorld;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
           float dist = length(vWorld.xz - uCamPos.xz);
@@ -64,6 +70,15 @@ export class Water {
           float fres = pow(1.0 - clamp(dot(viewDir, vec3(0.0,1.0,0.0)), 0.0, 1.0), 2.4);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.34, 0.42, 0.46), fres * 0.8);
           diffuseColor.a = mix(0.72, 0.97, fres);
+
+          // scintillement solaire : micro-normales animées + spéculaire serré
+          vec3 nrmG = normalize(vec3(
+            sin(vWorld.x * 2.9 + uTime * 1.9) * 0.055 + sin(vWorld.x * 7.3 - uTime * 1.1) * 0.028,
+            1.0,
+            cos(vWorld.z * 2.6 - uTime * 1.6) * 0.055 + cos(vWorld.z * 6.1 + uTime * 0.9) * 0.028));
+          vec3 viewG = normalize(uCamPos - vWorld);
+          float glit = pow(max(dot(reflect(-uSunDir, nrmG), viewG), 0.0), 240.0);
+          diffuseColor.rgb += uSunCol * glit * uDaylight * 2.3;
         `);
     };
 
@@ -79,8 +94,11 @@ export class Water {
     return Math.max(0, WORLD.waterLevel - this.terrain.height(x, z));
   }
 
-  update(dt, camera, rainIntensity = 0) {
+  update(dt, camera, rainIntensity = 0, sunDir = null, sunColor = null, daylight = 1) {
     this.uniforms.uTime.value += dt;
+    if (sunDir && sunDir.isVector3) this.uniforms.uSunDir.value.copy(sunDir).normalize();
+    if (sunColor && sunColor.isColor) this.uniforms.uSunCol.value.copy(sunColor);
+    this.uniforms.uDaylight.value = daylight;
     // Défilement des normales : houle lente + agitation sous la pluie
     const nm = this.material.normalMap;
     nm.offset.x = (nm.offset.x + dt * 0.012) % 1;

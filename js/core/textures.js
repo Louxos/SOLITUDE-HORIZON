@@ -432,6 +432,129 @@ const BUILDERS = {
   },
 };
 
+// ============================================================ photos IA
+// Les textures photo (générées par IA, licences propres) remplacent
+// l'albédo procédural quand le fichier existe. Le procédural reste
+// la solution de secours (Node, premier lancement hors ligne).
+const PHOTO_FILES = {
+  grass: 'grass.jpg', dirt: 'dirt.jpg', asphalt: 'asphalt.jpg', brick: 'brick.jpg',
+  plaster: 'plaster.jpg', wood: 'wood_planks.jpg', roof: 'roof_tiles.jpg', rust: 'rust_metal.jpg',
+};
+const PHOTO_NORMAL_STRENGTH = {
+  grass: 0.9, dirt: 1.1, asphalt: 1.2, brick: 1.7, plaster: 1.0,
+  wood: 1.5, roof: 1.4, rust: 1.8,
+};
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`image introuvable: ${url}`));
+    img.src = url;
+  });
+}
+
+/** Rend une image tileable : mosaïque décalée + fondu de la croix centrale. */
+function makeSeamlessCanvas(img, size = 512) {
+  const c = canvas(size), ctx = c.getContext('2d');
+  const half = size / 2;
+  for (const dx of [-half, 0]) for (const dy of [-half, 0]) {
+    ctx.drawImage(img, dx, dy, size, size);
+  }
+  // masque en croix adoucie : le centre montre l'image originale,
+  // les bords gardent la mosaïque décalée ( perfectly wrappée)
+  const mask = canvas(size), mctx = mask.getContext('2d');
+  mctx.filter = 'blur(22px)';
+  mctx.fillStyle = '#fff';
+  const w = size * 0.34;
+  mctx.fillRect(half - w / 2, 0, w, size);
+  mctx.fillRect(0, half - w / 2, size, w);
+  const over = canvas(size), octx = over.getContext('2d');
+  octx.drawImage(img, 0, 0, size, size);
+  octx.globalCompositeOperation = 'destination-in';
+  octx.drawImage(mask, 0, 0);
+  ctx.drawImage(over, 0, 0);
+  return c;
+}
+
+/** Normale dérivée d'un canvas (luminance → hauteur → sobel simple). */
+function normalCanvasFrom(srcCanvas, strength = 1.4) {
+  const size = 512;
+  const small = canvas(size);
+  small.getContext('2d').drawImage(srcCanvas, 0, 0, size, size);
+  const d = small.getContext('2d').getImageData(0, 0, size, size).data;
+  const lum = (x, y) => {
+    x &= size - 1; y &= size - 1;
+    const i = (y * size + x) * 4;
+    return (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
+  };
+  const out = canvas(size), octx = out.getContext('2d');
+  const img = octx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = (lum(x + 1, y) - lum(x - 1, y)) * strength;
+      const dy = (lum(x, y + 1) - lum(x, y - 1)) * strength;
+      let nx = -dx, ny = dy, nz = 1;
+      const l = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      const i = (y * size + x) * 4;
+      img.data[i] = (nx / l * 0.5 + 0.5) * 255;
+      img.data[i + 1] = (ny / l * 0.5 + 0.5) * 255;
+      img.data[i + 2] = (nz / l * 0.5 + 0.5) * 255;
+      img.data[i + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
+}
+
+function wrapNormal(cnv) {
+  const tex = new THREE.CanvasTexture(cnv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+/**
+ * Charge les photos, les rend tileables et remplace l'albédo des textures
+ * procédurales correspondantes (même objet texture → matériaux à jour).
+ * Échoue silencieusement en Node / hors ligne.
+ */
+export async function applyPhotoTextures(onProgress) {
+  const keys = Object.keys(PHOTO_FILES);
+  let done = 0;
+  for (const key of keys) {
+    try {
+      const img = await loadImage(`textures/${PHOTO_FILES[key]}`);
+      const seamless = makeSeamlessCanvas(img, 512);
+      const tex = getTexture(key);
+      const cnv = tex.image;
+      cnv.getContext('2d').drawImage(seamless, 0, 0, cnv.width, cnv.height);
+      tex.needsUpdate = true;
+      const nTex = wrapNormal(normalCanvasFrom(seamless, PHOTO_NORMAL_STRENGTH[key] || 1.4));
+      nTex.repeat.copy(tex.repeat);
+      cache.set(`${key}PhotoNormal:1`, nTex);
+    } catch (e) { /* secours procédural */ }
+    done++;
+    onProgress?.(done / keys.length, key);
+    await new Promise((r) => setTimeout(r, 0));
+  }
+}
+
+/** Meilleure normale disponible pour un matériau : photo > dérivée > null. */
+export function normalFor(key, fallback = null) {
+  const photo = cache.get(`${key}PhotoNormal:1`);
+  if (photo) return photo;
+  try {
+    const ck = `${key}DerivedNormal:1`;
+    if (cache.has(ck)) return cache.get(ck);
+    const src = getTexture(key).image;
+    const tex = wrapNormal(normalCanvasFrom(src, 1.2));
+    cache.set(ck, tex);
+    return tex;
+  } catch (e) {
+    return fallback ? getTexture(fallback) : null;
+  }
+}
+
 export function getTexture(name, repeat = 1) {
   const key = `${name}:${repeat}`;
   if (cache.has(key)) return cache.get(key);

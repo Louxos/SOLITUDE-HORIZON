@@ -394,3 +394,20 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   font-style: normal;
   color: #6b5632;
 }
+
+/* ---- Panneau Meshy : champs ---- */
+.field { display: block; margin: 10px 0; }
+.field span { display: block; font-size: 11px; color: #8fa3b0; margin-bottom: 4px; }
+.field input {
+  width: 100%; box-sizing: border-box; padding: 8px 10px;
+  background: rgba(10, 14, 18, 0.85); border: 1px solid var(--border);
+  border-radius: 4px; color: #dfe6ea; font-size: 13px;
+}
+.field input:focus { outline: 1px solid #7c8f7a; }
+
+/* ---- Écran titre : emblème ---- */
+.title-emblem {
+  width: 148px; height: 148px; border-radius: 10px;
+  margin: 0 auto 14px; display: block;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55), 0 0 0 1px rgba(220, 214, 190, 0.12);
+}

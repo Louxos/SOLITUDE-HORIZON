@@ -523,6 +523,35 @@ check('matériel de pêche défini', !!ITEMS.fishing_rod && !!ITEMS.raw_fish && 
   check('brume naissante à 5 h', AmbienceFX.mistWindow(5) > 0 && AmbienceFX.mistWindow(5) < 1, `à 5 h : ${AmbienceFX.mistWindow(5).toFixed(2)}`);
 }
 
+
+// --- 15. Pack visuel : photos, icônes, vendor GLTF --------------------------
+section('Pack visuel (P0–P4)');
+{
+  const fs = await import('node:fs');
+  const files = [
+    'textures/grass.jpg', 'textures/dirt.jpg', 'textures/asphalt.jpg', 'textures/brick.jpg',
+    'textures/plaster.jpg', 'textures/wood_planks.jpg', 'textures/roof_tiles.jpg', 'textures/rust_metal.jpg',
+    'assets/emblem.png', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png',
+    'assets/icons/maskable-512.png', 'assets/icons/apple-touch-icon.png', 'assets/og-image.png',
+    'vendor/three/loaders/GLTFLoader.js', 'vendor/three/loaders/BufferGeometryUtils.js',
+  ];
+  const missing = files.filter((f) => !fs.existsSync(f));
+  check('photos, icônes et bannières présentes', missing.length === 0, missing.length ? `manquants : ${missing.join(', ')}` : `${files.length} fichiers`);
+
+  const { normalFor } = await import('../js/core/textures.js');
+  const n = normalFor('wood');
+  check('normales dérivées disponibles (secours hors photos)', !!n, n ? 'ok' : 'null');
+
+  const gltfSrc = fs.readFileSync('vendor/three/loaders/GLTFLoader.js', 'utf8');
+  check('GLTFLoader vendorisé', /class GLTFLoader/.test(gltfSrc) && /three\.module\.min\.js/.test(gltfSrc));
+
+  const { CustomProps } = await import('../js/world/custom-props.js');
+  check('système de modèles importés instanciable', typeof CustomProps === 'function');
+
+  const idx = fs.readFileSync('index.html', 'utf8');
+  check('icônes et Open Graph câblés', /favicon-32\.png/.test(idx) && /og:image/.test(idx));
+}
+
 // ----------------------------------------------------------------- rapport
 console.log('\n══════════════════════════════════════════════════════════════');
 console.log('  SOLITUDE HORIZON — tests système (headless)');

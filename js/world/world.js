@@ -15,6 +15,7 @@ import { VegetationFactory, GrassField } from './vegetation.js';
 import { Water } from './water.js';
 import { FishShoals, FishingGame } from './fish.js';
 import { AmbienceFX } from '../environment/ambience.js';
+import { CustomProps } from './custom-props.js';
 import { PoiManager } from './poi.js';
 import { Sky } from '../environment/sky.js';
 import { Weather } from '../environment/weather.js';
@@ -42,6 +43,7 @@ export class World {
     this.fishShoals = new FishShoals(this.scene, this.terrain, this.water);
     this.fishing = new FishingGame(makeRng(WORLD.seed ^ 0x91a7));
     this.ambience = new AmbienceFX(this.scene, this.terrain, this.water);
+    this.customProps = new CustomProps(this.scene);
     this.sky = new Sky(this.scene, engine);
     this.weather = new Weather(this.scene, this.terrain, WORLD.seed + 17);
     this.animals = new AnimalManager(this.scene, this.terrain, WORLD.seed);
@@ -215,6 +217,26 @@ export class World {
     }
   }
 
+  /** Pose un modèle importé (Meshy AI / .glb) devant le joueur et le persiste. */
+  async addCustomProp(name, buffer) {
+    const player = this.player;
+    const dir = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    const pos = player.position.clone().add(dir.multiplyScalar(2.6));
+    pos.y = this.terrain.height(pos.x, pos.z);
+    const prop = await this.customProps.spawn(name, buffer, pos, player.yaw + Math.PI, 1);
+    await this.customProps.saveModel(name, buffer);
+    this.state.customProps = this.state.customProps || [];
+    this.state.customProps.push({ name, x: +pos.x.toFixed(2), y: +pos.y.toFixed(2), z: +pos.z.toFixed(2), yaw: player.yaw + Math.PI, scale: 1 });
+    bus.emit('notify', { text: 'Modèle posé devant vous.', kind: 'good' });
+    return prop;
+  }
+
+  removeLastCustomProp() {
+    const p = this.customProps.removeLast();
+    if (p && Array.isArray(this.state.customProps)) this.state.customProps.pop();
+    return p;
+  }
+
   useVehicle(vehicle) {
     if (this.player.vehicle) return;
     if (!vehicle.repaired) {
@@ -335,13 +357,13 @@ export class World {
     const physics = this.poi.collectPhysics(pos);
     this.activeColliders = physics.colliders.concat(this.base.colliders);
     this.activeSupports = physics.supports;
-    this.treeColliders = this.chunks.nearbyColliders(pos.x, pos.z, []);
+    this.treeColliders = this.chunks.nearbyColliders(pos.x, pos.z, []).concat(this.customProps.colliders);
 
     // Environnement
     this.weather.update(dt, this.camera, this.sky.hour);
     this.sky.update(dt, this.camera, this.weather);
     this.chunks.setWetness(this.weather.wetness);
-    this.water.update(dt, this.camera, this.weather.rainIntensity);
+    this.water.update(dt, this.camera, this.weather.rainIntensity, this.sky.sunDir, this.sky.uniforms.uSunColor.value, this.sky.daylight);
     this.vegFactory.updateWind(this.engine.elapsed, this.weather.windStrength);
 
     // Poissons & pêche
@@ -459,5 +481,8 @@ export class World {
     // laisse jamais le joueur sous le sol.
     const p = this.player.position;
     p.y = Math.max(p.y, this.terrain.height(p.x, p.z) + 0.05);
+
+    // Modèles importés (Meshy AI / .glb) : replacés à leur position
+    this.customProps.restore(this.state.customProps).catch(() => {});
   }
 }

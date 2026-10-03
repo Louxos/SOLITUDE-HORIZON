@@ -16,7 +16,7 @@
  */
 
 import * as THREE from '../../vendor/three/three.module.min.js';
-import { getTexture } from '../core/textures.js';
+import { getTexture, normalFor } from '../core/textures.js';
 import { mergeGeometries, transformGeometry, box, colorize } from '../core/geometry.js';
 import { makeRng, hashInt } from '../core/rng.js';
 import { settings } from '../core/settings.js';
@@ -46,13 +46,13 @@ function materials() {
     map: getTexture(tex), roughness: 0.93, metalness: 0, vertexColors: true, ...opts,
   });
   MATS = {
-    plaster: mk('plaster', { normalMap: getTexture('wallNormal') }),
-    brick: mk('brick', { normalMap: getTexture('wallNormal') }),
-    wood: mk('wood'),
-    concrete: mk('concrete', { normalMap: getTexture('wallNormal') }),
-    stone: mk('rock'),
-    metal: mk('rust', { roughness: 0.68, metalness: 0.35 }),
-    roof: mk('roof'),
+    plaster: mk('plaster', { normalMap: normalFor('plaster', 'wallNormal'), normalScale: new THREE.Vector2(0.8, 0.8) }),
+    brick: mk('brick', { normalMap: normalFor('brick', 'wallNormal'), normalScale: new THREE.Vector2(1.1, 1.1) }),
+    wood: mk('wood', { normalMap: normalFor('wood'), normalScale: new THREE.Vector2(1.0, 1.0) }),
+    concrete: mk('concrete', { normalMap: normalFor('concrete', 'wallNormal'), normalScale: new THREE.Vector2(0.9, 0.9) }),
+    stone: mk('rock', { normalMap: normalFor('rock', 'groundNormal'), normalScale: new THREE.Vector2(1.2, 1.2) }),
+    metal: mk('rust', { normalMap: normalFor('rust'), normalScale: new THREE.Vector2(1.3, 1.3), roughness: 0.68, metalness: 0.35 }),
+    roof: mk('roof', { normalMap: normalFor('roof'), normalScale: new THREE.Vector2(1.1, 1.1) }),
     glass: new THREE.MeshStandardMaterial({
       color: 0x9db3b8, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.28,
       side: THREE.DoubleSide, depthWrite: false,

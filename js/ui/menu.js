@@ -38,6 +38,7 @@ export class Menu {
     el.innerHTML = `
       <div class="title-screen" id="title-screen">
         <div class="title-inner">
+          <img class="title-emblem" src="./assets/emblem.png" alt="SOLITUDE HORIZON">
           <h1>SOLITUDE<span>HORIZON</span></h1>
           <p class="tagline">Une région abandonnée. Personne d'autre. Juste vous.</p>
           <div class="title-buttons">
@@ -65,6 +66,7 @@ export class Menu {
             <button data-menu="resume" class="primary">Reprendre</button>
             <button data-menu="save">Sauvegarder</button>
             <button data-menu="home">Établir un refuge ici</button>
+            <button data-menu="meshy">Importer un modèle 3D…</button>
             <button data-menu="settings">Paramètres</button>
             <button data-menu="quit">Retour au menu principal</button>
           </div>
@@ -206,6 +208,7 @@ export class Menu {
         this.resume();
         break;
       }
+      case 'meshy': this.resume(); bus.emit('ui:meshy'); break;
       case 'settings': this.openSettings(); break;
       case 'quit':
         this.save?.save('manuel');

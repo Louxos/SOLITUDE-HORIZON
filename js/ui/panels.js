@@ -105,6 +105,24 @@ export class Panels {
           <div class="panel-body"><div id="lore-body" class="lore-body"></div></div>
           <footer><span class="hint">Certains fragments se recoupent. D'autres non.</span></footer>
         </div>
+
+        <div class="panel small hidden" id="panel-meshy">
+          <header><h2>Importer un modèle 3D — Meshy AI</h2><button class="close" data-close>✕</button></header>
+          <div class="panel-body">
+            <p class="hint">Générez un modèle avec votre compte <b>meshy.ai</b>, ou importez un fichier <b>.glb</b>. Le modèle apparaît devant vous et reste dans votre monde.</p>
+            <label class="field"><span>Clé API Meshy (gardée dans ce navigateur uniquement)</span>
+              <input type="password" id="meshy-key" placeholder="msy-…" autocomplete="off"></label>
+            <label class="field"><span>Description du modèle</span>
+              <input type="text" id="meshy-prompt" placeholder="ex. une vieille cabine téléphonique rouillée" autocomplete="off"></label>
+            <div class="craft-list">
+              <div class="craft"><div><b>Générer avec Meshy</b><span>text-to-3D · ~2 min</span></div><button id="meshy-generate">Générer</button></div>
+              <div class="craft"><div><b>Importer un fichier .glb</b><span>fonctionne sans clé</span></div><button id="meshy-file-btn">Choisir…</button></div>
+              <div class="craft"><div><b>Retirer le dernier modèle</b><span>supprime le prop posé</span></div><button id="meshy-remove">Retirer</button></div>
+            </div>
+            <input type="file" id="meshy-file" accept=".glb,model/gltf-binary" style="display:none">
+            <p id="meshy-status" class="hint"></p>
+          </div>
+        </div>
       </div>
 
       <div class="death-screen hidden" id="death-screen">
@@ -123,6 +141,7 @@ export class Panels {
       bench: document.getElementById('panel-bench'),
       water: document.getElementById('panel-water'),
       lore: document.getElementById('panel-lore'),
+      meshy: document.getElementById('panel-meshy'),
     };
     this.death = document.getElementById('death-screen');
   }
@@ -147,6 +166,7 @@ export class Panels {
     bus.on('ui:cook', ({ fire, worldFire }) => this.openCook(fire, worldFire));
     bus.on('ui:workbench', () => this.openBench());
     bus.on('ui:water', (data) => this.openWater(data));
+    bus.on('ui:meshy', () => this.openMeshy());
     bus.on('player:died', ({ cause }) => this.showDeath(cause));
     bus.on('inventory:changed', () => { if (this.open) this.refresh(); });
 
@@ -572,6 +592,94 @@ export class Panels {
       }
       this.refreshWater();
     }));
+  }
+
+  // ------------------------------------------------------------- meshy
+  openMeshy() {
+    this.show('meshy');
+    const key = localStorage.getItem('solitude-horizon:meshy-key');
+    if (key) document.getElementById('meshy-key').value = key;
+    this.bindMeshy();
+  }
+
+  bindMeshy() {
+    if (this._meshyBound) return;
+    this._meshyBound = true;
+    const st = (t) => { const el = document.getElementById('meshy-status'); if (el) el.textContent = t; };
+    document.getElementById('meshy-file-btn').addEventListener('click', () => document.getElementById('meshy-file').click());
+    document.getElementById('meshy-file').addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      st('Import du fichier…');
+      try {
+        const buf = await f.arrayBuffer();
+        await this.world.addCustomProp(`file_${Date.now()}`, buf);
+        st('Modèle importé et posé devant vous ✓');
+      } catch (err) {
+        st(`Fichier illisible : ${String(err.message || err).slice(0, 120)}`);
+      }
+      e.target.value = '';
+    });
+    document.getElementById('meshy-remove').addEventListener('click', () => {
+      const p = this.world.removeLastCustomProp();
+      st(p ? 'Modèle retiré.' : 'Aucun modèle posé.');
+    });
+    document.getElementById('meshy-generate').addEventListener('click', () => this.meshyGenerate());
+  }
+
+  async meshyGenerate() {
+    const st = (t) => { const el = document.getElementById('meshy-status'); if (el) el.textContent = t; };
+    const key = document.getElementById('meshy-key').value.trim();
+    const prompt = document.getElementById('meshy-prompt').value.trim();
+    if (!key) return st('Entrez votre clé API Meshy (meshy.ai → API).');
+    if (!prompt) return st('Décrivez le modèle à générer.');
+    localStorage.setItem('solitude-horizon:meshy-key', key);
+    const btn = document.getElementById('meshy-generate');
+    btn.disabled = true;
+    try {
+      st('Envoi à Meshy…');
+      const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+      let res = await fetch('https://api.meshy.ai/openapi/v1/text-to-3d', {
+        method: 'POST', headers,
+        body: JSON.stringify({ prompt, art_style: 'realistic', should_remesh: true }),
+      });
+      if (res.status === 404 || res.status === 405) {
+        res = await fetch('https://api.meshy.ai/openapi/v2/text-to-3d', {
+          method: 'POST', headers,
+          body: JSON.stringify({ prompt, art_style: 'realistic', topology: 'quad' }),
+        });
+      }
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}${txt ? ' — ' + txt.slice(0, 90) : ''}`);
+      }
+      const data = await res.json();
+      const id = data.id || data.task_id;
+      if (!id) throw new Error('réponse inattendue (pas d\'identifiant de tâche)');
+      for (let i = 0; i < 120; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const poll = await fetch(`https://api.meshy.ai/openapi/v1/text-to-3d/${id}`, { headers: { Authorization: `Bearer ${key}` } });
+        const j = await poll.json().catch(() => ({}));
+        const pct = Math.round((j.progress ?? 0) * 100);
+        st(`Génération… ${pct} % (${j.status || 'en cours'})`);
+        if (j.status === 'SUCCEEDED' || j.status === 'SUCCESS') {
+          const glb = j.result?.model_urls?.glb || j.result?.glb_url || j.result?.model_url;
+          if (!glb) throw new Error('terminé mais aucune URL glb trouvée');
+          st('Téléchargement du modèle…');
+          const buf = await (await fetch(glb)).arrayBuffer();
+          await this.world.addCustomProp(`meshy_${Date.now()}`, buf);
+          st('Modèle généré et posé devant vous ✓');
+          return;
+        }
+        if (j.status === 'FAILED' || j.status === 'EXPIRED') throw new Error(j.error_message || j.status);
+      }
+      throw new Error('délai dépassé (6 min) — retentez');
+    } catch (e) {
+      const msg = String(e.message || e);
+      st(`Échec : ${msg.slice(0, 130)}. Sinon : générez sur meshy.ai puis importez le .glb téléchargé.`);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   // ------------------------------------------------------------- lore
