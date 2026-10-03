@@ -12,7 +12,10 @@ monde, à chaque partie, sans jamais stocker la carte.
 
 ## 1. Lancer le jeu
 
-Le jeu a besoin d'un serveur HTTP local (les modules ES et le service worker ne fonctionnent pas
+**En ligne (GitHub Pages)** — après activation dans *Settings → Pages* (source : une branche,
+dossier `/`) : **<https://louxos.github.io/SOLITUDE-HORIZON/>**
+
+**En local** — le jeu a besoin d'un serveur HTTP local (les modules ES et le service worker ne fonctionnent pas
 depuis `file://`). Depuis la racine du dépôt :
 
 ```bash
