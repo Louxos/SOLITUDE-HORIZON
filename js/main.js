@@ -6,7 +6,7 @@ import { Engine } from './core/engine.js';
 import { input } from './core/input.js';
 import { settings } from './core/settings.js';
 import { bus } from './core/events.js';
-import { ALL_TEXTURES, preloadTextures } from './core/textures.js';
+import { ALL_TEXTURES, preloadTextures, applyPhotoTextures } from './core/textures.js';
 import { World } from './world/world.js';
 import { SaveManager } from './save/save.js';
 import { Hud } from './ui/hud.js';
@@ -43,7 +43,8 @@ async function boot(saveData) {
 
   await frame();
   menu.setProgress(0.05, 'Génération des textures');
-  await preloadTextures(ALL_TEXTURES, (p) => menu.setProgress(0.05 + p * 0.35, 'Génération des textures'));
+  await preloadTextures(ALL_TEXTURES, (p) => menu.setProgress(0.05 + p * 0.3, 'Génération des textures'));
+  await applyPhotoTextures((p) => menu.setProgress(0.35 + p * 0.1, 'Application des textures photo'));
 
   menu.setProgress(0.42, 'Modelage du relief');
   await frame();

@@ -5,6 +5,7 @@
 import * as THREE from '../../vendor/three/three.module.min.js';
 import { settings } from './settings.js';
 import { bus } from './events.js';
+import { PostFX } from './postfx.js';
 
 export class Engine {
   constructor(canvas) {
@@ -45,6 +46,10 @@ export class Engine {
     this.running = false;
     this.paused = false;
 
+    // Post-traitement (bloom subtil, grading, vignette) — Élevé uniquement
+    this.postfx = new PostFX(this.renderer);
+    this.postfx.setEnabled(!!preset.postfx);
+
     window.addEventListener('resize', () => this.resize());
     this.resize();
 
@@ -61,6 +66,8 @@ export class Engine {
     this.renderer.shadowMap.needsUpdate = true;
     this.camera.far = preset.viewDistance * 1.6;
     this.camera.updateProjectionMatrix();
+    this.postfx.setEnabled(!!preset.postfx);
+    if (preset.postfx) this.postfx.resize();
     bus.emit('quality:applied', preset);
   }
 
@@ -69,6 +76,7 @@ export class Engine {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    if (this.postfx) this.postfx.resize();
   }
 
   add(updater) { this.updaters.push(updater); return updater; }
@@ -109,7 +117,8 @@ export class Engine {
       }
     }
 
-    this.renderer.render(this.scene, this.camera);
+    if (this.postfx.enabled) this.postfx.render(this.scene, this.camera, this.elapsed);
+    else this.renderer.render(this.scene, this.camera);
     this.autoQuality(dt);
   }
 

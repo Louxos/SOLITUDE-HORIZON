@@ -22,8 +22,6 @@ const SKY_VERT = `
 const SKY_FRAG = `
   precision highp float;
   #include <common>
-  #include <tonemapping_pars_fragment>
-  #include <colorspace_pars_fragment>
   varying vec3 vWorldDir;
   uniform vec3 uZenith;
   uniform vec3 uHorizon;
@@ -126,6 +124,29 @@ function samplePalette(hour) {
   };
 }
 
+/** Sprite de nuage : bouffées radiales superposées (blanc, alpha). */
+function makeCloudTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 128;
+  const ctx = c.getContext('2d');
+  for (let i = 0; i < 22; i++) {
+    const x = 30 + Math.random() * 196;
+    const y = 44 + Math.random() * 44;
+    const r = 16 + Math.random() * 34;
+    const g = ctx.createRadialGradient(x, y, 1, x, y, r);
+    const a = 0.10 + Math.random() * 0.16;
+    g.addColorStop(0, `rgba(255,255,255,${a})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, 7);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export class Sky {
   constructor(scene, engine) {
     this.scene = scene;
@@ -171,6 +192,36 @@ export class Sky {
 
     this.hemi = new THREE.HemisphereLight(0x9db4c8, 0x3d3a2f, 0.55);
     scene.add(this.hemi);
+
+    // Nuages dérivants (billboards hauts, hors brouillard)
+    this.clouds = [];
+    {
+      const tex = makeCloudTexture();
+      const N = 24;
+      for (let i = 0; i < N; i++) {
+        const mat = new THREE.MeshBasicMaterial({
+          map: tex, transparent: true, opacity: 0, depthWrite: false, fog: false,
+        });
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.46), mat);
+        m.frustumCulled = false;
+        m.renderOrder = -900;
+        m.userData = {
+          ang: (i / N) * Math.PI * 2 + Math.random() * 0.4,
+          dist: 750 + Math.random() * 1150,
+          alt: 265 + Math.random() * 205,
+          w: 330 + Math.random() * 430,
+          speed: 0.0022 + Math.random() * 0.0035,
+          base: 0.26 + Math.random() * 0.30,
+        };
+        scene.add(m);
+        this.clouds.push(m);
+      }
+    }
+
+    // Étoiles filantes (rares, nuits dégagées)
+    this.shooting = null;
+    this.shootTimer = 30 + Math.random() * 60;
+    this._shootTex = makeCloudTexture();
 
     bus.on('quality:applied', () => this.configureShadow());
   }
@@ -230,6 +281,7 @@ export class Sky {
 
     this.uniforms.uZenith.value.copy(pal.zenith).multiplyScalar(lerp(1, 0.55, cloudy));
     this.uniforms.uHorizon.value.copy(pal.horizon).multiplyScalar(lerp(1, 0.62, cloudy));
+    this.sunDir = sunDir;
     this.uniforms.uSunDir.value.copy(sunDir);
     this.uniforms.uMoonDir.value.copy(moonDir);
     this.uniforms.uSunColor.value.copy(pal.sun);
@@ -250,6 +302,67 @@ export class Sky {
 
     this.hemi.intensity = lerp(0.08, 0.62, this.daylight) * lerp(1, 0.7, cloudy) + 0.03;
     this.hemi.color.copy(pal.zenith).lerp(new THREE.Color(0xffffff), 0.25);
+
+    // --- Nuages : anneaux dérivants autour du joueur, teintés au crépuscule ---
+    const dusk = Math.max(0, 1 - Math.abs(hour - 6.3) * 1.3) + Math.max(0, 1 - Math.abs(hour - 19.5) * 1.3);
+    for (const m of this.clouds) {
+      const u = m.userData;
+      u.ang += u.speed * dt;
+      m.position.set(
+        camera.position.x + Math.cos(u.ang) * u.dist,
+        u.alt,
+        camera.position.z + Math.sin(u.ang) * u.dist,
+      );
+      m.lookAt(camera.position.x, m.position.y - 40, camera.position.z);
+      m.scale.set(u.w, u.w * 0.5, 1);
+      m.material.opacity = u.base * (0.10 + this.daylight * 0.9) * (1 - cloudy * 0.38);
+      m.material.color.setRGB(1, 1, 1).lerp(pal.sun, Math.min(1, dusk) * 0.45);
+    }
+
+    // --- Étoile filante : tête + traînée de sprites, nuits dégagées ---
+    this.shootTimer -= dt;
+    if (!this.shooting && this.shootTimer <= 0) {
+      if (this.uniforms.uStars.value > 0.55) {
+        const group = new THREE.Group();
+        const ang = Math.random() * Math.PI * 2;
+        const start = new THREE.Vector3(
+          camera.position.x + Math.cos(ang) * 950,
+          430 + Math.random() * 170,
+          camera.position.z + Math.sin(ang) * 950,
+        );
+        const dir = new THREE.Vector3(
+          -Math.cos(ang) * (0.7 + Math.random() * 0.5),
+          -(0.28 + Math.random() * 0.3),
+          -Math.sin(ang) * (0.7 + Math.random() * 0.5),
+        ).normalize();
+        for (let i = 0; i < 6; i++) {
+          const mat = new THREE.SpriteMaterial({
+            map: this._shootTex, color: 0xdfe8ff, transparent: true,
+            opacity: 0.85 * (1 - i / 6), depthWrite: false, fog: false,
+          });
+          const sp = new THREE.Sprite(mat);
+          const sc = i === 0 ? 7 : 4.5 * (1 - i / 7);
+          sp.scale.set(sc, sc, 1);
+          sp.position.copy(start).addScaledVector(dir, -i * 9);
+          group.add(sp);
+        }
+        group.renderOrder = -899;
+        this.scene.add(group);
+        this.shooting = { group, dir, t: 0 };
+      }
+      this.shootTimer = 25 + Math.random() * 55;
+    }
+    if (this.shooting) {
+      const sh = this.shooting;
+      sh.t += dt;
+      sh.group.position.addScaledVector(sh.dir, 950 * dt);
+      for (const sp of sh.group.children) sp.material.opacity *= Math.max(0, 1 - dt * 1.6);
+      if (sh.t > 0.9) {
+        this.scene.remove(sh.group);
+        for (const sp of sh.group.children) sp.material.dispose();
+        this.shooting = null;
+      }
+    }
     this.hemi.groundColor.set(0x35322a);
 
     // Brouillard atmosphérique

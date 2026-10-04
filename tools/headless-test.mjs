@@ -106,9 +106,10 @@ for (const type of Object.keys(BUILDING_TYPES)) {
   totalDoors += doors.length;
   totalColliders += b.colliders.length;
   totalSupports += b.supports.length;
+  const windows = b.interactables.filter((i) => i.kind === 'window');
   check(`${BUILDING_TYPES[type].label} : structure complète`,
-    b.colliders.length > 8 && doors.length === 1 && b.group.children.length > 0,
-    `${b.colliders.length} collisions, ${containers.length} conteneurs`);
+    b.colliders.length > 8 && doors.length >= 1 && b.group.children.length > 0,
+    `${b.colliders.length} collisions, ${containers.length} conteneurs, ${doors.length} porte(s), ${windows.length} fenêtre(s) franchissables`);
 }
 check('conteneurs fouillables répartis', totalContainers >= 12, `${totalContainers} conteneurs au total`);
 check('supports de plancher générés', totalSupports >= 9, `${totalSupports} surfaces marchables`);
@@ -322,6 +323,234 @@ check('tous les objets sont bien définis', dbOk, dbErr || `${Object.keys(ITEMS)
 const placeables = Object.entries(ITEMS).filter(([, d]) => d.place).length;
 const parts = Object.entries(ITEMS).filter(([, d]) => d.part).length;
 check('objets posables et pièces disponibles', placeables >= 5 && parts >= 7, `${placeables} posables, ${parts} pièces`);
+
+
+// --- 12. Villes, villages et entrée dans les bâtiments ----------------------
+section('Villes, villages, aplanissement du sol');
+const { PoiManager } = await import('../js/world/poi.js');
+
+// Terrain de test vierge avec pads (comme en jeu)
+const terrainPads = new Terrain(WORLD.seed);
+const fakeWorld = { state: { vehicles: {} }, terrain: terrainPads };
+const scenePoi = new THREE.Scene();
+let poiMgr;
+try {
+  poiMgr = new PoiManager(scenePoi, terrainPads, fakeWorld);
+} catch (e) {
+  check('PoiManager constructible', false, String(e).slice(0, 80));
+}
+if (poiMgr) {
+  // Comme en jeu : le joueur partage le MÊME terrain que la ville (pads aplatis)
+  const townPlayer = new Player(camera, terrainPads);
+  const towns = [...poiMgr.defs.values()].filter((d) => d.kind === 'town');
+  const villages = [...poiMgr.defs.values()].filter((d) => d.kind === 'village');
+  check('des villes sont générées', towns.length >= 1, `${towns.length} ville(s) : ${towns.map((t) => t.name).join(', ')}`);
+  check('des villages sont générés', villages.length >= 3, `${villages.length} village(s) : ${villages.map((t) => t.name).join(', ')}`);
+
+  // une ville DOIT être à portée de marche du spawn, sinon on ne la trouve jamais
+  const spawn = fakeWorld.spawnPoint || null;
+  const spawnPt = spawn || (await import('../js/world/terrain.js')).findSpawnPoint(terrainPads);
+  const nearest = [...poiMgr.defs.values()]
+    .filter((d) => d.kind === 'town' || d.kind === 'village')
+    .map((d) => ({ d, dist: Math.hypot(d.x - spawnPt.x, d.z - spawnPt.z) }))
+    .sort((a, b) => a.dist - b.dist)[0];
+  check('un bourg est à portée de marche du spawn', nearest && nearest.dist < 700,
+    `${nearest.d.name} (${nearest.d.kind}) à ${Math.round(nearest.dist)} m du spawn`);
+
+  // déterminisme : re-créer le monde (menu → nouvelle partie) doit donner les MÊMES noms
+  const mgr2 = new PoiManager(new THREE.Scene(), terrainPads, { state: { vehicles: {} }, terrain: terrainPads });
+  const names1 = poiMgr.settlements.map((s) => s.id + ':' + s.name).sort().join('|');
+  const names2 = mgr2.settlements.map((s) => s.id + ':' + s.name).sort().join('|');
+  check('les noms de bourgs sont stables entre deux parties', names1 === names2,
+    names1 === names2 ? 'identiques' : `différents : ${names1} vs ${names2}`);
+
+  const town = towns[0];
+  check('une ville contient plusieurs bâtiments', town.layout.length >= 5, `${town.layout.length} bâtiments autour de la place`);
+
+  // la place est bien plate
+  const plazaSlope = terrainPads.slope(town.x, town.z);
+  check('la place de ville est aplatie', plazaSlope < 3, `pente ${plazaSlope.toFixed(1)}°`);
+
+  // chargement effectif : bâtiments, portes, conteneurs
+  const inst = poiMgr.load(town);
+  const doors = [], containers = [];
+  for (const b of inst.buildings) {
+    doors.push(...b.interactables.filter((i) => i.kind === 'door'));
+    containers.push(...b.interactables.filter((i) => i.kind === 'container'));
+  }
+  check('les bâtiments de la ville ont des portes', doors.length >= town.layout.length * 0.7, `${doors.length} portes`);
+  check('la ville contient du butin', containers.length >= 5, `${containers.length} conteneurs`);
+
+  // ---- LE test critique : on peut ENTRER dans une maison ----
+  let entryOk = false, entryInfo = '';
+  outer:
+  for (const b of inst.buildings) {
+    const door = b.interactables.find((i) => i.kind === 'door' && !i.locked && !i.jammed);
+    if (!door) continue;
+    // ouvrir la porte
+    fakeWorld.state.doors = fakeWorld.state.doors || {};
+    fakeWorld.state.doors[door.id] = { open: true };
+    for (const c of inst.colliders) if (c.door === door.id) c.disabled = true;
+
+    // se placer devant la porte (côté opposé au centre du bâtiment)
+    let dx = door.world.x - b.meta.center.x, dz = door.world.z - b.meta.center.z;
+    const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    const px = door.world.x + dx * 2.0, pz = door.world.z + dz * 2.0;
+    townPlayer.position.set(px, terrainPads.height(px, pz) + 0.1, pz);
+    townPlayer.velocity.set(0, 0, 0);
+    townPlayer.yaw = Math.atan2(-(door.world.x - px), -(door.world.z - pz));
+
+    // marcher vers le centre du bâtiment avec la vraie physique et le vrai input
+    const start = { x: px, z: pz };
+    fakeInput.input.codes.clear();
+    fakeInput.input.codes.add('KeyW');
+    for (let i = 0; i < 120; i++) {
+      // viser le centre (recalculé : on peut dévier en franchissant le seuil)
+      const vx = b.meta.center.x - townPlayer.position.x, vz = b.meta.center.z - townPlayer.position.z;
+      townPlayer.yaw = Math.atan2(-vx, -vz);
+      townPlayer.update(1 / 30, {
+        colliders: inst.colliders, supports: inst.supports,
+        treeColliders: [], weather: { temperature: 14, rainIntensity: 0 },
+      });
+      const m = b.meta;
+      const pdx = townPlayer.position.x - m.center.x, pdz = townPlayer.position.z - m.center.z;
+      const c = Math.cos(-m.yaw), sn = Math.sin(-m.yaw);
+      const lx = pdx * c + pdz * sn, lz = -pdx * sn + pdz * c;
+      if (Math.abs(lx) < m.W / 2 - 0.5 && Math.abs(lz) < m.D / 2 - 0.5) {
+        entryOk = true;
+        entryInfo = `${b.meta.label} atteinte (${(Math.hypot(townPlayer.position.x - start.x, townPlayer.position.z - start.z)).toFixed(1)} m parcourus)`;
+        break outer;
+      }
+    }
+    if (!entryOk) entryInfo = `bloqué à ${(Math.hypot(townPlayer.position.x - start.x, townPlayer.position.z - start.z)).toFixed(1)} m de la porte`;
+  }
+  check('ON PEUT ENTRER DANS LES MAISONS (seuil au niveau du sol)', entryOk, entryInfo);
+
+  fakeInput.input.codes.clear();
+  // les fenêtres brisées du rez-de-chaussée sont franchissables
+  let windowsTotal = 0;
+  for (const b of inst.buildings) windowsTotal += b.interactables.filter((i) => i.kind === 'window').length;
+  check("des fenêtres brisées servent d'entrée de secours", windowsTotal >= 1, `${windowsTotal} fenêtres franchissables dans la ville`);
+
+  // l'église a un clocher (collisions hautes)
+  const church = inst.buildings.find((b) => b.meta.type === 'church');
+  if (church) {
+    const tall = church.colliders.some((c) => c.wy + c.hy > church.meta.center.y + 9);
+    check("l'église possède un clocher", tall);
+  }
+
+  // coffre à gants des véhicules
+  const gloveboxes = inst.interactables.filter((i) => i.label === 'Boîte à gants');
+  check('les véhicules ont une boîte à gants fouillable', gloveboxes.length >= 1, `${gloveboxes.length} boîte(s)`);
+
+  // déchargement propre
+  poiMgr.unload(town.id);
+  check('déchargement du lieu sans erreur', !poiMgr.loaded.has(town.id));
+}
+
+// --- 13. Persistance des portes ----------------------------------------------
+section('Persistance de l\'état des portes');
+{
+  const b = generateBuilding({ type: 'small_house', seed: 42, x: 500, y: 60, z: -500, yaw: 0.3, id: 'door_test' });
+  const door = b.interactables.find((i) => i.kind === 'door');
+  const doorCollider = b.colliders.find((c) => c.door === door.id);
+  doorCollider.disabled = true;    // ouverte
+  check('le collider de porte se désactive à l\'ouverture', doorCollider.disabled === true);
+  const back = b.interactables.find((i) => i.kind === 'door' && i.id !== door.id);
+  check('les maisons familiales ont une porte de service', !!back, back ? back.label : 'absente');
+}
+
+
+// --- 14. Pêche, lore et ambiance --------------------------------------------
+section('Pêche, lore et ambiance');
+const { FishingGame, FishShoals } = await import('../js/world/fish.js');
+const { loreFor, LORE } = await import('../js/ui/lore.js');
+const { AmbienceFX } = await import('../js/environment/ambience.js');
+
+check('matériel de pêche défini', !!ITEMS.fishing_rod && !!ITEMS.raw_fish && !!ITEMS.cooked_fish,
+  `${['fishing_rod', 'raw_fish', 'cooked_fish'].filter((k) => ITEMS[k]).join(', ')}`);
+
+// mini-jeu : lancer → morsure → ferrage réussi
+{
+  const mkFishRng = (ret) => { const f = () => ret; f.range = (a) => a; return f; };
+  const g = new FishingGame(mkFishRng(0.5));
+  g.cast(0.6);
+  check('la ligne se lance', g.active && g.phase === 'wait');
+  let ev = null;
+  for (let i = 0; i < 200 && !ev && g.phase !== 'bite'; i++) ev = g.update(1 / 10);
+  check('ça mord près d\'un banc', g.phase === 'bite', `phase ${g.phase}`);
+  const res = g.reel();
+  check('le ferrage remonte un poisson (ou le perd)', res === 'caught' || res === 'missed', res);
+  check('la partie se termine', !g.active);
+  // eau vide : on peut ne rien prendre du tout
+  const g2 = new FishingGame(mkFishRng(0.9));   // jamais de chance
+  g2.cast(0);
+  let ev2 = null;
+  for (let i = 0; i < 300 && !ev2; i++) ev2 = g2.update(1 / 10);
+  check('eau vide : souvent rien', ev2 === 'nothing' || g2.phase === 'bite', `event ${ev2}`);
+}
+
+// bancs visuels : apparition près d'un lac + densité requêtable
+{
+  let lakePos = null;
+  for (let i = 0; i < 30000 && !lakePos; i++) {
+    const x = ((i * 313) % 4800) - 2400, z = ((i * 787) % 4800) - 2400;
+    if (terrainA.height(x, z) < WORLD.waterLevel - 2.5) lakePos = { x, z };
+  }
+  const shoals = new FishShoals(new THREE.Scene(), terrainA, null);
+  for (let i = 0; i < 400 && shoals.shoals.length < 3; i++) shoals.update(0.1, lakePos, i);
+  check('des bancs de poissons apparaissent près des lacs', shoals.shoals.length >= 3, `${shoals.shoals.length} bancs`);
+  const s0 = shoals.shoals[0];
+  check('la densité de poissons est requêtable', shoals.query(s0.x, s0.z) > 0.5,
+    `densité au centre du banc ${shoals.query(s0.x, s0.z).toFixed(2)}`);
+  check('pas de poissons loin des bancs', shoals.query(s0.x + 500, s0.z + 500) === 0);
+}
+
+// lore : fragments lisibles, stables
+{
+  const e1 = loreFor({ id: 'notebook' }, 0, WORLD.seed);
+  const e2 = loreFor({ id: 'notebook' }, 0, WORLD.seed);
+  check('les carnets contiennent des fragments', LORE.length >= 18, `${LORE.length} fragments`);
+  check('un même carnet montre toujours le même texte', e1.title === e2.title && e1.body === e2.body);
+  const ph = loreFor({ id: 'photo' }, 0, WORLD.seed);
+  check('les photos montrent des photographies', /Photographie/.test(ph.title), ph.title);
+}
+
+// ambiance : fenêtre de brume du matin
+{
+  check('brume pleine à l\'aube', AmbienceFX.mistWindow(7) === 1, `à 7 h : ${AmbienceFX.mistWindow(7)}`);
+  check('pas de brume à midi', AmbienceFX.mistWindow(12.5) === 0, `à 12 h 30 : ${AmbienceFX.mistWindow(12.5)}`);
+  check('brume naissante à 5 h', AmbienceFX.mistWindow(5) > 0 && AmbienceFX.mistWindow(5) < 1, `à 5 h : ${AmbienceFX.mistWindow(5).toFixed(2)}`);
+}
+
+
+// --- 15. Pack visuel : photos, icônes, vendor GLTF --------------------------
+section('Pack visuel (P0–P4)');
+{
+  const fs = await import('node:fs');
+  const files = [
+    'textures/grass.jpg', 'textures/dirt.jpg', 'textures/asphalt.jpg', 'textures/brick.jpg',
+    'textures/plaster.jpg', 'textures/wood_planks.jpg', 'textures/roof_tiles.jpg', 'textures/rust_metal.jpg',
+    'assets/emblem.png', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png',
+    'assets/icons/maskable-512.png', 'assets/icons/apple-touch-icon.png', 'assets/og-image.png',
+    'vendor/three/loaders/GLTFLoader.js', 'vendor/three/loaders/BufferGeometryUtils.js',
+  ];
+  const missing = files.filter((f) => !fs.existsSync(f));
+  check('photos, icônes et bannières présentes', missing.length === 0, missing.length ? `manquants : ${missing.join(', ')}` : `${files.length} fichiers`);
+
+  const { normalFor } = await import('../js/core/textures.js');
+  const n = normalFor('wood');
+  check('normales dérivées disponibles (secours hors photos)', !!n, n ? 'ok' : 'null');
+
+  const gltfSrc = fs.readFileSync('vendor/three/loaders/GLTFLoader.js', 'utf8');
+  check('GLTFLoader vendorisé', /class GLTFLoader/.test(gltfSrc) && /three\.module\.min\.js/.test(gltfSrc));
+
+  const { CustomProps } = await import('../js/world/custom-props.js');
+  check('système de modèles importés instanciable', typeof CustomProps === 'function');
+
+  const idx = fs.readFileSync('index.html', 'utf8');
+  check('icônes et Open Graph câblés', /favicon-32\.png/.test(idx) && /og:image/.test(idx));
+}
 
 // ----------------------------------------------------------------- rapport
 console.log('\n══════════════════════════════════════════════════════════════');

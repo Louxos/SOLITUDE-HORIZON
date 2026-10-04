@@ -9,10 +9,13 @@ import { bus } from '../core/events.js';
 import { input } from '../core/input.js';
 import { settings } from '../core/settings.js';
 import { makeRng, hashString } from '../core/rng.js';
-import { Terrain } from './terrain.js';
+import { Terrain, findSpawnPoint } from './terrain.js';
 import { ChunkManager } from './chunks.js';
 import { VegetationFactory, GrassField } from './vegetation.js';
 import { Water } from './water.js';
+import { FishShoals, FishingGame } from './fish.js';
+import { AmbienceFX } from '../environment/ambience.js';
+import { CustomProps } from './custom-props.js';
 import { PoiManager } from './poi.js';
 import { Sky } from '../environment/sky.js';
 import { Weather } from '../environment/weather.js';
@@ -37,6 +40,10 @@ export class World {
     this.chunks = new ChunkManager(this.scene, this.terrain, this.vegFactory);
     this.grass = new GrassField(this.scene, this.terrain, this.vegFactory);
     this.water = new Water(this.scene, this.terrain);
+    this.fishShoals = new FishShoals(this.scene, this.terrain, this.water);
+    this.fishing = new FishingGame(makeRng(WORLD.seed ^ 0x91a7));
+    this.ambience = new AmbienceFX(this.scene, this.terrain, this.water);
+    this.customProps = new CustomProps(this.scene);
     this.sky = new Sky(this.scene, engine);
     this.weather = new Weather(this.scene, this.terrain, WORLD.seed + 17);
     this.animals = new AnimalManager(this.scene, this.terrain, WORLD.seed);
@@ -55,6 +62,9 @@ export class World {
       playTime: 0,
     };
 
+    // le point d'apparition doit être connu AVANT la planification des bourgs
+    // (poi.js y accroche une ville de départ) et calculé avant tout aplanissement
+    this.spawnPoint = findSpawnPoint(this.terrain);
     this.poi = new PoiManager(this.scene, this.terrain, this);
     this.base = new BaseSystem(this.scene, this);
     this.interaction = new InteractionSystem(this);
@@ -92,18 +102,8 @@ export class World {
 
   /** Point de départ : une clairière proche d'une route, jamais dans l'eau. */
   findSpawn() {
-    const rng = makeRng(WORLD.seed ^ 0xaaa);
-    for (let i = 0; i < 400; i++) {
-      const x = rng.range(-WORLD.half * 0.5, WORLD.half * 0.5);
-      const z = rng.range(-WORLD.half * 0.5, WORLD.half * 0.5);
-      const h = this.terrain.height(x, z);
-      if (h < WORLD.waterLevel + 3 || h > 110) continue;
-      if (this.terrain.slope(x, z) > 9) continue;
-      const road = this.terrain.roads.query(x, z);
-      if (!road || road.dist > 120) continue;
-      return { x, z, y: h };
-    }
-    return { x: 0, z: 0, y: this.terrain.height(0, 0) };
+    if (!this.spawnPoint) this.spawnPoint = findSpawnPoint(this.terrain);
+    return this.spawnPoint;
   }
 
   start(saveData) {
@@ -159,7 +159,13 @@ export class World {
   // ---------------------------------------------------------------- portes
   applyDoorState(target, open) {
     if (target.object) {
-      target.object.rotation.y = open ? -Math.PI * 0.62 : 0;
+      if (target.slide) {
+        // porte de garage : coulisse vers le haut
+        target.object.position.y = open ? target.doorHeight * 0.92 : 0;
+      } else {
+        // porte battante : s'ouvre vers l'extérieur du bâtiment
+        target.object.rotation.y = open ? (target.swing || -1) * -Math.PI * 0.62 : 0;
+      }
     }
     target.open = open;
     for (const inst of this.poi.loaded.values()) {
@@ -170,6 +176,67 @@ export class World {
   }
 
   // ---------------------------------------------------------------- véhicules
+  // ---------------------------------------------------------------- pêche
+  /** Lance la ligne au point visé (profondeur > ~1 m requise). */
+  startFishing(x, z) {
+    if (this.fishing.active) return;
+    if (!this.player.inventory.has('fishing_rod')) {
+      bus.emit('notify', { text: 'Il vous faut une canne à pêche.', kind: 'warn' });
+      return;
+    }
+    if (this.player.stats.stamina < 8) {
+      bus.emit('notify', { text: 'Trop épuisé pour lancer la ligne.', kind: 'warn' });
+      return;
+    }
+    const depth = this.water.depthAt(x, z);
+    if (depth < 0.9) {
+      bus.emit('notify', { text: "L'eau est trop peu profonde ici.", kind: 'warn' });
+      return;
+    }
+    this.player.stats.stamina -= 6;
+    const density = this.fishShoals.query(x, z);
+    this.fishingPoint = { x, z };
+    this.fishing.cast(density);
+    this.fishShoals.ripple(x, z, 0.5);
+    bus.emit('notify', { text: 'Ligne lancée. Vous attendez…', kind: 'muted' });
+    bus.emit('audio:sfx', { name: 'splash' });
+  }
+
+  /** Ferre la ligne (ou la relève). */
+  reelFishing() {
+    if (!this.fishing.active) return;
+    const res = this.fishing.reel();
+    if (res === 'caught') {
+      this.player.inventory.add('raw_fish', 1);
+      bus.emit('notify', { text: 'Poisson attrapé !', kind: 'good' });
+      bus.emit('audio:sfx', { name: 'splash' });
+    } else if (res === 'missed') {
+      bus.emit('notify', { text: 'Il s\'est décroché…', kind: 'warn' });
+    } else if (res === 'early') {
+      bus.emit('notify', { text: 'Vous relevez la ligne.', kind: 'muted' });
+    }
+  }
+
+  /** Pose un modèle importé (Meshy AI / .glb) devant le joueur et le persiste. */
+  async addCustomProp(name, buffer) {
+    const player = this.player;
+    const dir = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    const pos = player.position.clone().add(dir.multiplyScalar(2.6));
+    pos.y = this.terrain.height(pos.x, pos.z);
+    const prop = await this.customProps.spawn(name, buffer, pos, player.yaw + Math.PI, 1);
+    await this.customProps.saveModel(name, buffer);
+    this.state.customProps = this.state.customProps || [];
+    this.state.customProps.push({ name, x: +pos.x.toFixed(2), y: +pos.y.toFixed(2), z: +pos.z.toFixed(2), yaw: player.yaw + Math.PI, scale: 1 });
+    bus.emit('notify', { text: 'Modèle posé devant vous.', kind: 'good' });
+    return prop;
+  }
+
+  removeLastCustomProp() {
+    const p = this.customProps.removeLast();
+    if (p && Array.isArray(this.state.customProps)) this.state.customProps.pop();
+    return p;
+  }
+
   useVehicle(vehicle) {
     if (this.player.vehicle) return;
     if (!vehicle.repaired) {
@@ -290,14 +357,30 @@ export class World {
     const physics = this.poi.collectPhysics(pos);
     this.activeColliders = physics.colliders.concat(this.base.colliders);
     this.activeSupports = physics.supports;
-    this.treeColliders = this.chunks.nearbyColliders(pos.x, pos.z, []);
+    this.treeColliders = this.chunks.nearbyColliders(pos.x, pos.z, []).concat(this.customProps.colliders);
 
     // Environnement
     this.weather.update(dt, this.camera, this.sky.hour);
     this.sky.update(dt, this.camera, this.weather);
     this.chunks.setWetness(this.weather.wetness);
-    this.water.update(dt, this.camera, this.weather.rainIntensity);
+    this.water.update(dt, this.camera, this.weather.rainIntensity, this.sky.sunDir, this.sky.uniforms.uSunColor.value, this.sky.daylight);
     this.vegFactory.updateWind(this.engine.elapsed, this.weather.windStrength);
+
+    // Poissons & pêche
+    this.fishShoals.update(dt, pos, this.engine.elapsed);
+    const wasBiting = this.fishing.phase === 'bite';
+    const fishEvent = this.fishing.update(dt);
+    if (this.fishing.phase === 'bite' && !wasBiting) {
+      bus.emit('notify', { text: 'Ça mord !', kind: 'good' });
+      bus.emit('audio:sfx', { name: 'splash' });
+      const fp = this.fishingPoint || pos;
+      this.fishShoals.ripple(fp.x, fp.z, 1);
+    }
+    if (fishEvent === 'nothing') bus.emit('notify', { text: 'Rien ne mord…', kind: 'muted' });
+    else if (fishEvent === 'late') bus.emit('notify', { text: 'Trop tard — le poisson est reparti.', kind: 'warn' });
+
+    // Brume du matin sur les lacs, poussière dans les bâtiments
+    this.ambience.update(dt, this.camera, this.sky.hour, this.weather.rainIntensity, player.sheltered, this.sky.daylight);
     this.base.update(dt);
 
     // Joueur
@@ -394,5 +477,12 @@ export class World {
     this.base.fromJSON(data.base);
     for (const id of this.state.discovered || []) this.poi.discovered.add(id);
     this.containersCache = new Map();
+    // Sécurité : si le relief a évolué (aplanissement des dalles), on ne
+    // laisse jamais le joueur sous le sol.
+    const p = this.player.position;
+    p.y = Math.max(p.y, this.terrain.height(p.x, p.z) + 0.05);
+
+    // Modèles importés (Meshy AI / .glb) : replacés à leur position
+    this.customProps.restore(this.state.customProps).catch(() => {});
   }
 }

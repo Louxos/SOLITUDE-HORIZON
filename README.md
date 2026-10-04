@@ -12,7 +12,10 @@ monde, à chaque partie, sans jamais stocker la carte.
 
 ## 1. Lancer le jeu
 
-Le jeu a besoin d'un serveur HTTP local (les modules ES et le service worker ne fonctionnent pas
+**En ligne (GitHub Pages)** — après activation dans *Settings → Pages* (source : une branche,
+dossier `/`) : **<https://louxos.github.io/SOLITUDE-HORIZON/>**
+
+**En local** — le jeu a besoin d'un serveur HTTP local (les modules ES et le service worker ne fonctionnent pas
 depuis `file://`). Depuis la racine du dépôt :
 
 ```bash
@@ -33,7 +36,7 @@ Cliquer sur la fenêtre pour capturer la souris (pointer lock). `Échap` la lib�
 ### Hors ligne
 
 Au premier chargement, un *service worker* (`sw.js`) met en cache la totalité du jeu
-(HTML, CSS, 33 modules JS, Three.js). Les visites suivantes fonctionnent **sans connexion**.
+(HTML, CSS, 39 modules JS, Three.js, 8 textures photo, icônes). Les visites suivantes fonctionnent **sans connexion**.
 Le jeu est aussi installable comme application (PWA) via `manifest.webmanifest`.
 Toutes les textures, géométries, sons et le monde sont générés à l'exécution : aucun asset binaire.
 
@@ -69,20 +72,38 @@ forêt de conifères, alpin, roche, marais, lande, friche agricole, rivage, ébo
 lissés jusqu'à 17 % de déclivité maximum, avec bas-côtés, gravats et végétation qui reconquiert
 le bitume.
 
-**Streaming.** Chunks de 256 m avec 4 niveaux de LOD (2 597 → 77 sommets), chargés/déchargés en
-fonction de la position ; 225 chunks résidents, ~5 ms de construction par chunk. Végétation en
-`InstancedMesh` (arbres, buissons, herbes, rochers) avec vent dans le vertex shader.
+**Streaming.** Chunks de 256 m avec 4 niveaux de LOD (4 485 → 117 sommets), chargés/déchargés en
+fonction de la position ; 225 chunks résidents. Végétation en `InstancedMesh` (arbres, buissons,
+rochers) avec vent dans le vertex shader, et jusqu'à **14 000 brins d'herbe** animés autour du
+joueur. Forêts plus denses, sous-bois envahis : la nature reconquiert tout.
 
-**Lieux.** 108 points d'intérêt persistants : hameaux, fermes, cabanes, garages, sites industriels,
-abris de chasse, campements, grottes, points de vue, épaves. Neuf archétypes de bâtiments générés
-procéduralement, **tous pénétrables** : portes qui s'ouvrent, étages, escaliers, meubles, vitres
-brisées, toitures effondrées selon un état de dégradation, mousse et lierre.
+**Villes et villages.** Trois **villes abandonnées** et quatre villages s'égrennent le long des
+routes, dont une ville à ~500 m du point d'apparition : une place centrale aplatie (le terrain est localement re-nivelé sous chaque
+bâtiment — les seuils de porte affleurent le sol), un anneau de bâtiments tournés vers la place,
+puits ou fontaine, lampadaires, bancs, panneaux de direction, épaves garées. On y trouve
+église à clocher, commerces en brique, station-service, ateliers. Chaque lieu a un **nom unique**,
+révélé par une notification à l'approche et tracé sur la carte. Les villes et villages sont
+**toujours indiqués sur la carte** (`M`) — comme sur une vraie carte papier, plus nets une fois
+discovered — et restent directionnels sur la minimap.
+
+**Lieux.** ~109 points d'intérêt persistants : villes, villages, hameaux, fermes, cabanes,
+garages, sites industriels, abris de chasse, campements, grottes, points de vue, belvédères,
+épaves. **Douze types de bâtiments** générés procéduralement, **tous pénétrables** : portes qui
+s'ouvrent (certaines verrouillées ou coincées — deux poussées à l'épaule viennent à bout des
+secondes), portes de service, **fenêtres brisées franchissables au rez-de-chaussée**, étages,
+escaliers, meubles, toitures effondrées selon un état de dégradation, mousse, lierre et plinthes
+de soubassement. Les boîtes à gants des épaves se fouillent.
 
 **Eau.** Lacs et rivières : on patauge, puis on nage au-delà de 1,25 m ; l'endurance descend,
 la température corporelle aussi.
 
-**Faune.** Cerfs, sangliers, renards, lapins, oiseaux, poissons, loups rares. États AI
+**Faune.** Cerfs, sangliers, renards, lapins, oiseaux, loups rares. États AI
 (broute / vigilant / fuite / approche), détection par distance et vent, danger évitable.
+
+**Pêche.** Des bancs de poissons circulent sous la surface des lacs (silhouettes et
+remous visibles). Avec une canne (appentis, garages), visez l'eau profonde : « Lancer la
+ligne », attendez la touche — *Ça mord !* — et ferrez dans la fenêtre de 1,7 s. Poisson
+brut à griller sur un feu (le cru fait courir un risque).
 
 **Ciel & météo.** Cycle jour/nuit complet (`TIME_SCALE = 60`, un jour ≈ 24 min) avec ciel en
 shader (Rayleigh/Mie), lune, étoiles, **nuits réellement sombres**. Météo enchaînée par chaînes de
@@ -91,7 +112,31 @@ brouillard, vent — avec inertie, humidité et températures cohérentes.
 
 **Audio.** 100 % procédural (WebAudio) : pas, dont le timbre change selon la surface (herbe, terre,
 gravier, bois, roche, eau), ambiances de biome, oiseaux à l'aube, pluie filtrée, tonnerre,
-moteur à régime variable, nappes musicales rares. Le silence est un parti pris.
+moteur à régime variable, nappes musicales rares, **réverbération des pièces** (réponse
+impulsionnelle générée) quand on entre dans un bâtiment. Le silence est un parti pris.
+
+**Atmosphère.** **Brume du matin** qui dort sur les lacs entre 5 h et 10 h puis se dissipe,
+poussière en suspension dans les faisceaux des bâtiments, **bloom subtil + color grading +
+vignette + grain** sur le préréglage Élevé (chaîne de post-traitement maison, sans addon,
+coupée automatiquement si le framerate chute).
+
+**Rendu (pack visuel).** Huit matériaux photoréalistes générés par IA puis rendus *tileables*
+par code (mosaïque décalée + fondu) : herbe, terre, asphalte, brique, plâtre, planches, tuiles,
+tôle rouillée — chacun avec sa **normale dérivée** (luminance → sobel), le tout en secours
+remplaçable par le procédural si les fichiers manquent. **Normales** aussi sur les troncs et
+murs. **Nuages dérivants** en billboards teintés au crépuscule, **étoiles filantes** les nuits
+dégagées, **scintillement solaire** sur l'eau (spéculaire serré animé), **fleurs sauvages**
+mêlées à l'herbe des prairies.
+
+**Modèles 3D importés (Meshy AI).** Menu pause → « Importer un modèle 3D… » : entrez votre
+clé [meshy.ai](https://meshy.ai) (gardée uniquement dans votre navigateur), décrivez un objet —
+la génération *text-to-3D* tourne, le GLB arrive et **se pose devant vous**, avec collision et
+persistance (fichier en IndexedDB, position dans la sauvegarde). L'import de fichier `.glb`
+téléchargé manuellement fonctionne sans clé. Un chargeur glTF est vendorisé (`vendor/three/loaders/`).
+
+**Récits trouvés.** Carnets, journaux intimes, registres, photographies et affiches
+s'ouvrent en pleine page sur papier jauni : 20 fragments du quotidien interrompu, stables
+pour un même objet — la narration vient des lieux, jamais de PNJ.
 
 ---
 
@@ -102,11 +147,13 @@ Tout est relié : **fouiller → poids → réparer → conduire → sauvegarder
 - **Survie** : santé, endurance, faim, soif, fatigue, température corporelle (mouillé + vent =
   hypothermie). Dégradation lente et lisible ; la privation totale tue en ~3,5 min réelles, jamais
   par surprise.
-- **Inventaire** : 24 emplacements, **38 kg** de charge — au-delà, on ralentit. 48 objets répartis
+- **Inventaire** : 24 emplacements, **38 kg** de charge — au-delà, on ralentit. 51 objets répartis
   en nourriture, boisson, soin, outil, pièce mécanique, ressource, mobilier, carburant.
 - **Butin crédible** : rien n'apparaît par magie. Le contenu est tiré paresseusement (déterministe,
   fonction du lieu et de la graine) **dans** les placards, tiroirs, boîtes à outils, coffres de
-  voiture, casiers d'atelier — 27 conteneurs pour une poignée de lieux, ~2 objets chacun.
+  voiture, casiers d'atelier — une seule ville abrite près de 80 conteneurs, ~2 à 3 objets chacun.
+  Tables de butin dédiées : cuisine, chambre, salle de bain, garage, atelier, appentis, commerce,
+  station-service, chapelle, véhicule, grotte.
 - **Réparation** : chaque véhicule a batterie, bougies, courroie, alternateur, durite, pneus,
   freins, plein de carburant. `R` lance un **diagnostic** qui liste ce qui manque ; chaque pièce
   demande l'objet **et** l'outil adapté (clé, cric, tournevis) et plusieurs étapes. Quand les
@@ -115,8 +162,10 @@ Tout est relié : **fouiller → poids → réparer → conduire → sauvegarder
 - **Base** : n'importe quel bâtiment devient un camp. Caisses de rangement, lit (dormir jusqu'à
   l'aube), feu de camp (cuisiner, se réchauffer, faire bouillir l'eau), lanternes, établi.
   Chaque objet posé est persisté avec son contenu.
-- **Découvertes** : approcher un lieu à moins de 55 m le révèle sur la carte et affiche une
-  notification discrète ; la carte (`M`) se remplit par cellules de 64 m au fil de l'exploration.
+- **Découvertes** : approcher un lieu le révèle sur la carte et affiche une notification discrète
+  (160 m pour une ville, 100 m pour un village, 55–85 m pour le reste) ; la carte (`M`) se remplit
+  par cellules de 64 m au fil de l'exploration. En cas de mort, le réapparition propose le refuge,
+  sinon **le lieu sûr découvert le plus proche**.
 
 ---
 
@@ -146,7 +195,7 @@ Cible : **1080p / 60 FPS sur PC milieu de gamme**.
 
 ## 7. Architecture
 
-Aucun fichier monolithique : 33 modules ES, ~9 300 lignes, zéro dépendance npm
+Aucun fichier monolithique : 39 modules ES, ~10 500 lignes, zéro dépendance npm
 (Three.js r180 est *vendored* dans `vendor/`).
 
 ```
@@ -155,9 +204,9 @@ css/         main.css · ui.css
 vendor/three/ three.module.min.js (r180, MIT)
 js/
   main.js            amorçage, écran de chargement, boucle, service worker
-  core/              config, rng, noise, events (bus), input, settings, engine, textures, geometry
+  core/              config, rng, noise, events (bus), input, settings, engine, postfx (bloom/grading), textures (22 gabarits procéduraux, dont brique), geometry
   world/             terrain, roads, chunks, vegetation, water, buildings, vehicles, poi, world
-  environment/       sky (shader), weather
+  environment/       sky (shader), weather, ambience (brume, poussière)
   player/            player (déplacement, collisions, nage, escalade, head bob)
   survival/          stats
   inventory/         items (base de données), inventory
@@ -165,7 +214,7 @@ js/
   interaction/       interaction (raycast + prompts contextuels)
   base/              base (construction, coffres, lit, feu)
   save/              save (LocalStorage + IndexedDB, autosave, export/import)
-  ui/                hud, panels, map, menu
+  ui/                hud, panels, map, menu, lore (fragments trouvés)
 tools/               headless-test.mjs · headless-shim.mjs
 ```
 
@@ -180,14 +229,20 @@ Un harnais de test hors navigateur exécute les vrais modules du jeu dans Node (
 simulés par `tools/headless-shim.mjs`) :
 
 ```bash
-node tools/headless-test.mjs      # 61 assertions, ~2,4 s, code de sortie 1 si échec
+node tools/headless-test.mjs      # 99 assertions, ~3 s, code de sortie 1 si échec
 ```
 
 Il couvre : déterminisme du terrain, relief et biomes, routes et déclivité, chunks et LOD,
-les 9 types de bâtiments (colliders, conteneurs), le butin et le poids, la chaîne complète
-diagnostic → réparation → conduite → sérialisation d'un véhicule, la survie sur plusieurs minutes
-simulées, la physique du joueur (chute et dégâts, murs, planchers, nage), la météo sur 40 minutes
-simulées, la sauvegarde/rechargement et la base d'objets.
+les **12 types de bâtiments** (colliders, conteneurs, portes, fenêtres), le butin et le poids,
+la chaîne complète diagnostic → réparation → conduite → sérialisation d'un véhicule, la survie
+sur plusieurs minutes simulées, la physique du joueur (chute et dégâts, murs, planchers, nage),
+la météo sur 40 minutes simulées, la sauvegarde/rechargement et la base d'objets — plus la
+**génération des villes/villages** (aplatissement de la place, portes, butin, clocher, boîtes à
+gants), le test critique : *un joueur qui marche réellement jusqu'à une porte ouverte et entre
+dans la maison* (vitesse, collisions et seuil vérifiés frame par frame), et les nouveaux
+systèmes : **mini-jeu de pêche** (lancer, touche, ferrage), bancs de poissons (apparition,
+densité), **fragments de récits** (stables, photos ≠ carnets) et **fenêtre de brume** du matin,
+plus la présence du **pack visuel** (photos, icônes, og-image, GLTFLoader vendorisé).
 
 Vérification des imports et de la syntaxe de l'ensemble du graphe de modules :
 

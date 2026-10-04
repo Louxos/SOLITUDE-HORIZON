@@ -49,6 +49,26 @@ export class AudioEngine {
     this.globalFilter.frequency.value = 20000;
     this.globalFilter.connect(this.master);
 
+    // Réverbération intérieure : réponse impulsionnelle générée (pièce vide)
+    this.reverb = ctx.createConvolver();
+    {
+      const len = Math.floor(ctx.sampleRate * 1.1);
+      const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = ir.getChannelData(ch);
+        for (let i = 0; i < len; i++) {
+          const t = i / len;
+          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.6) * (i < 40 ? i / 40 : 1) * 0.5;
+        }
+      }
+      this.reverb.buffer = ir;
+    }
+    this.reverbSend = ctx.createGain();
+    this.reverbSend.gain.value = 0;
+    this.globalFilter.connect(this.reverbSend);
+    this.reverbSend.connect(this.reverb);
+    this.reverb.connect(this.master);
+
     this.ambienceGain = ctx.createGain();
     this.ambienceGain.gain.value = settings.data.ambienceVolume;
     this.ambienceGain.connect(this.globalFilter);
@@ -205,6 +225,7 @@ export class AudioEngine {
       case 'open': this.burst({ freq: 320, q: 4, duration: 0.4, gain: 0.22, type: 'bandpass', decay: 0.3 }); break;
       case 'locked': this.burst({ freq: 2200, q: 6, duration: 0.07, gain: 0.2, type: 'bandpass' }); break;
       case 'search': this.burst({ freq: 1400, q: 1.4, duration: 0.22, gain: 0.14 }); break;
+      case 'page': this.burst({ freq: 2400, q: 0.7, duration: 0.16, gain: 0.10 }); break;
       case 'repair': this.burst({ freq: 3800, q: 6, duration: 0.09, gain: 0.24, type: 'bandpass' }); break;
       case 'drink': this.burst({ freq: 500, q: 1.2, duration: 0.3, gain: 0.16, type: 'lowpass' }); break;
       case 'eat': this.burst({ freq: 700, q: 1.4, duration: 0.22, gain: 0.14 }); break;
@@ -264,6 +285,9 @@ export class AudioEngine {
     this.leaves.gain.gain.setTargetAtTime(forest * wind * 0.05, t, 0.7);
 
     this.interiorFactor = lerp(this.interiorFactor, interior, clamp(dt * 2.4, 0, 1));
+    if (this.reverbSend) {
+      this.reverbSend.gain.setTargetAtTime(this.interiorFactor * 0.32, t, 0.5);
+    }
     const targetFreq = underwater ? 420 : lerp(20000, 2600, this.interiorFactor);
     this.globalFilter.frequency.setTargetAtTime(targetFreq, t, 0.25);
 

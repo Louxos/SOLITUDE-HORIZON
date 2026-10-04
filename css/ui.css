@@ -366,3 +366,48 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .bindings { grid-template-columns: 1fr; }
   #minimap { width: 110px; height: 110px; }
 }
+
+/* ---- Panneau lore : papier jauni, serif ---- */
+.panel.lore {
+  width: min(560px, 92vw);
+  background: linear-gradient(160deg, #e9ddc0 0%, #e2d2ac 55%, #d8c497 100%);
+  border: 1px solid #b7a274;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.65), inset 0 0 60px rgba(120,90,40,0.18);
+}
+.panel.lore header { border-bottom: 1px dashed #b7a274; }
+.panel.lore header h2 { color: #5a4a2c; }
+.panel.lore .hint { color: #7a6844; }
+.lore-body {
+  padding: 18px 22px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  color: #453820;
+  font-size: 15.5px;
+  line-height: 1.65;
+  max-height: 46vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+.lore-body p { margin: 0 0 14px; }
+.lore-body p:first-child::first-letter {
+  font-size: 1.6em;
+  font-style: normal;
+  color: #6b5632;
+}
+
+/* ---- Panneau Meshy : champs ---- */
+.field { display: block; margin: 10px 0; }
+.field span { display: block; font-size: 11px; color: #8fa3b0; margin-bottom: 4px; }
+.field input {
+  width: 100%; box-sizing: border-box; padding: 8px 10px;
+  background: rgba(10, 14, 18, 0.85); border: 1px solid var(--border);
+  border-radius: 4px; color: #dfe6ea; font-size: 13px;
+}
+.field input:focus { outline: 1px solid #7c8f7a; }
+
+/* ---- Écran titre : emblème ---- */
+.title-emblem {
+  width: 148px; height: 148px; border-radius: 10px;
+  margin: 0 auto 14px; display: block;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55), 0 0 0 1px rgba(220, 214, 190, 0.12);
+}

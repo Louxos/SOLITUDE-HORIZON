@@ -4,7 +4,7 @@
  */
 
 import * as THREE from '../../vendor/three/three.module.min.js';
-import { getTexture } from '../core/textures.js';
+import { getTexture, normalFor } from '../core/textures.js';
 import { mergeGeometries, transformGeometry, colorize } from '../core/geometry.js';
 import { makeRng, hashInt } from '../core/rng.js';
 import { settings } from '../core/settings.js';
@@ -137,8 +137,11 @@ export class VegetationFactory {
 
     const bark = getTexture('bark');
     bark.repeat.set(1, 3);
+    const barkNormal = normalFor('bark');
+    if (barkNormal) barkNormal.repeat.set(1, 3);
     this.trunkMat = new THREE.MeshStandardMaterial({
       map: bark, roughness: 0.94, metalness: 0, vertexColors: true,
+      normalMap: barkNormal, normalScale: new THREE.Vector2(1.1, 1.1),
     });
 
     const foliageTex = getTexture('foliage');
@@ -207,7 +210,7 @@ export function buildChunkVegetation(factory, terrain, cx, cz, lod) {
   const rng = makeRng(hashInt(terrain.seed, cx, cz, 77));
   const preset = settings.preset;
 
-  const spacing = lod === 0 ? 6.5 : 9.0;
+  const spacing = lod === 0 ? 5.4 : 7.5;
   const cols = Math.floor(size / spacing);
 
   const buckets = {};              // espèce -> [matrices, couleurs]
@@ -226,7 +229,7 @@ export function buildChunkVegetation(factory, terrain, cx, cz, lod) {
       const roll = rng();
 
       // --- Arbres ---
-      if (roll < density * 0.55 * preset.treeDensity) {
+      if (roll < density * 0.62 * preset.treeDensity) {
         let species;
         if (y > 145) species = rng() < 0.72 ? 'spruce' : 'pine';
         else if (biome === BIOME.DENSE_FOREST) species = rng() < 0.5 ? 'pine' : (rng() < 0.6 ? 'oak' : 'spruce');
@@ -252,7 +255,7 @@ export function buildChunkVegetation(factory, terrain, cx, cz, lod) {
       }
 
       // --- Sous-bois ---
-      if (roll < density * 0.55 + 0.20) {
+      if (roll < density * 0.62 + 0.26) {
         const which = rng();
         const mtx = new THREE.Matrix4().compose(
           new THREE.Vector3(x, y - 0.05, z),
@@ -323,7 +326,7 @@ export class GrassField {
   constructor(scene, terrain, factory) {
     this.scene = scene;
     this.terrain = terrain;
-    this.count = 9000;
+    this.count = 14000;
     this.center = new THREE.Vector3(1e9, 0, 1e9);
     const geom = buildCross(0.55, 0.42);
     const tex = getTexture('grassBlade');
@@ -338,6 +341,18 @@ export class GrassField {
     this.mesh.castShadow = false;
     this.mesh.count = 0;
     scene.add(this.mesh);
+
+    // Fleurs sauvages : petites croix colorées mêlées à l'herbe
+    this.flowerCount = 420;
+    this.flowerPalette = [0xe9e4d2, 0xd9c6e6, 0xe8d49a, 0xce8fa0, 0xd8e2ec];
+    this.flowerMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, side: THREE.DoubleSide, roughness: 0.85, metalness: 0, vertexColors: true,
+    });
+    factory.applyWind(this.flowerMat, 1.8);
+    this.flowerMesh = new THREE.InstancedMesh(buildCross(0.11, 0.09), this.flowerMat, this.flowerCount);
+    this.flowerMesh.frustumCulled = false;
+    this.flowerMesh.count = 0;
+    scene.add(this.flowerMesh);
     this._m = new THREE.Matrix4();
     this._v = new THREE.Vector3();
     this._q = new THREE.Quaternion();
@@ -349,11 +364,11 @@ export class GrassField {
 
   refresh(px, pz) {
     const radius = settings.preset.grassRadius;
-    if (!settings.preset.grass || radius <= 0) { this.mesh.count = 0; return; }
+    if (!settings.preset.grass || radius <= 0) { this.mesh.count = 0; this.flowerMesh.count = 0; return; }
     const rng = makeRng(hashInt(this.terrain.seed, Math.round(px / 8), Math.round(pz / 8), 5150));
-    let n = 0;
-    const target = Math.min(this.count, Math.floor(radius * radius * 3.1));
-    for (let i = 0; i < target * 1.6 && n < target; i++) {
+    let n = 0, nf = 0;
+    const target = Math.min(this.count, Math.floor(radius * radius * 4.2));
+    for (let i = 0; i < target * 1.8 && n < target; i++) {
       const a = rng() * Math.PI * 2;
       const r = Math.sqrt(rng()) * radius;
       const x = px + Math.cos(a) * r;
@@ -371,11 +386,24 @@ export class GrassField {
       this.mesh.setMatrixAt(n, this._m);
       this._c.setHSL(0.235 + (rng() - 0.5) * 0.05, 0.34 + rng() * 0.2, 0.26 + rng() * 0.18);
       this.mesh.setColorAt(n, this._c);
+      // fleur de temps en temps, dans les prairies
+      if (surf === 'grass' && nf < this.flowerCount && rng() < 0.045) {
+        this._m.clone();
+        const fs = 0.55 + rng() * 0.9;
+        this._s.set(fs, fs * (0.8 + rng() * 0.6), fs);
+        this._m.compose(this._v, this._q, this._s);
+        this.flowerMesh.setMatrixAt(nf, this._m);
+        this.flowerMesh.setColorAt(nf, this._c.set(this.flowerPalette[(rng() * this.flowerPalette.length) | 0]));
+        nf++;
+      }
       n++;
     }
     this.mesh.count = n;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    this.flowerMesh.count = nf;
+    this.flowerMesh.instanceMatrix.needsUpdate = true;
+    if (this.flowerMesh.instanceColor) this.flowerMesh.instanceColor.needsUpdate = true;
     this.center.set(px, 0, pz);
   }
 

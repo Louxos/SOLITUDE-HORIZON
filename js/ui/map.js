@@ -42,7 +42,7 @@ export class MapSystem {
         <div class="map-wrap"><canvas id="map-canvas" width="${MAP_RES}" height="${MAP_RES}"></canvas></div>
         <footer>
           <span id="map-coords"></span>
-          <span id="map-legend">◉ vous · ▲ lieux découverts · ⌂ refuge</span>
+          <span id="map-legend">◉ vous · ▲ lieux découverts · ⌂ villages · ▦ villes (toujours indiquées)</span>
         </footer>
       </div>`;
     this.root.appendChild(el);
@@ -154,20 +154,46 @@ export class MapSystem {
     }
     ctx.restore();
 
-    // Lieux découverts
-    ctx.font = '11px system-ui, sans-serif';
+    // Villes et villages : TOUJOURS indiqués (une carte papier connaît les bourgs),
+    // plus nets une fois découverts sur le terrain.
     ctx.textAlign = 'center';
+    for (const def of this.world.poi.settlements) {
+      const disc = this.world.state.discovered.includes(def.id);
+      const p = this.worldToMap(def.x, def.z);
+      if (def.kind === 'town') {
+        ctx.fillStyle = disc ? 'rgba(232, 195, 122, 0.30)' : 'rgba(232, 195, 122, 0.18)';
+        ctx.strokeStyle = disc ? 'rgba(232, 195, 122, 0.95)' : 'rgba(232, 195, 122, 0.72)';
+        ctx.lineWidth = 1;
+        const r = 5;
+        ctx.beginPath();
+        ctx.rect(p.px - r, p.py - r, r * 2, r * 2);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = disc ? 'rgba(238, 222, 186, 0.95)' : 'rgba(238, 222, 186, 0.8)';
+        ctx.font = 'bold 10px system-ui, sans-serif';
+        ctx.fillText(def.name.toUpperCase(), p.px, p.py - 8);
+      } else {
+        ctx.fillStyle = disc ? 'rgba(228, 216, 190, 0.95)' : 'rgba(228, 216, 190, 0.75)';
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.fillText('⌂', p.px, p.py + 4);
+        ctx.fillStyle = disc ? 'rgba(228, 216, 190, 0.8)' : 'rgba(228, 216, 190, 0.62)';
+        ctx.font = '9px system-ui, sans-serif';
+        ctx.fillText(def.name, p.px, p.py + 14);
+      }
+    }
+
+    // Autres lieux : uniquement découverts
     for (const id of this.world.state.discovered) {
       const def = this.world.poi.defs.get(id);
-      if (!def) continue;
+      if (!def || def.kind === 'town' || def.kind === 'village') continue;
       const p = this.worldToMap(def.x, def.z);
       ctx.fillStyle = 'rgba(228, 216, 190, 0.95)';
+      ctx.font = '11px system-ui, sans-serif';
       ctx.fillText('▲', p.px, p.py + 3);
       ctx.fillStyle = 'rgba(228, 216, 190, 0.75)';
       ctx.font = '9px system-ui, sans-serif';
       ctx.fillText(def.name, p.px, p.py + 14);
-      ctx.font = '11px system-ui, sans-serif';
     }
+    ctx.font = '11px system-ui, sans-serif';
 
     // Refuge
     const home = this.world.base.homePosition;
@@ -215,10 +241,23 @@ export class MapSystem {
       c.px - srcSize / 2, c.py - srcSize / 2, srcSize, srcSize,
       0, 0, size, size);
 
-    // Lieux proches découverts
+    // Villes et villages : toujours visibles, même hors du rayon (direction)
+    for (const def of this.world.poi.settlements) {
+      const dx = def.x - p.x, dz = def.z - p.z;
+      const px = Math.min(size - 5, Math.max(5, size / 2 + (dx / range) * size));
+      const py = Math.min(size - 5, Math.max(5, size / 2 + (dz / range) * size));
+      if (def.kind === 'town') {
+        ctx.fillStyle = 'rgba(232, 195, 122, 0.95)';
+        ctx.fillRect(px - 3, py - 3, 6, 6);
+      } else {
+        ctx.fillStyle = 'rgba(232, 214, 176, 0.75)';
+        ctx.fillRect(px - 2, py - 2, 4, 4);
+      }
+    }
+    // Lieux découverts proches
     for (const id of this.world.state.discovered) {
       const def = this.world.poi.defs.get(id);
-      if (!def) continue;
+      if (!def || def.kind === 'town' || def.kind === 'village') continue;
       const dx = def.x - p.x, dz = def.z - p.z;
       if (Math.abs(dx) > range / 2 || Math.abs(dz) > range / 2) continue;
       const px = size / 2 + (dx / range) * size;
